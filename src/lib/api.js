@@ -164,3 +164,12 @@ export function slugify(s) {
     .replace(/[̀-ͯ]/g, '')
   return noAccents.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50)
 }
+
+// ---------- Todos los activos (para estadísticas) ----------
+export async function getAllAssets() {
+  const { data, error } = await supabase
+    .from('cmdb_assets')
+    .select('id, asset_type_id')
+  if (error) throw error
+  return data
+}
