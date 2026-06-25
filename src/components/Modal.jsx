@@ -3,7 +3,7 @@ import { IconX } from './Icons.jsx'
 export default function Modal({ title, onClose, children, footer, size }) {
   const cls = 'modal' + (size === 'sm' ? ' modal-sm' : size === 'lg' ? ' modal-lg' : '')
   return (
-    <div className="modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.() }}>
+    <div className="modal-overlay">
       <div className={cls} role="dialog" aria-modal="true">
         <div className="modal-head">
           <h3>{title}</h3>
