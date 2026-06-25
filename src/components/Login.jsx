@@ -28,10 +28,10 @@ export default function Login() {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, marginBottom: 8 }}>
-          <img src={logoIcetel} alt="Icetel" style={{ height: 48, objectFit: 'contain' }} />
-          <span style={{ color: '#cbd5e1', fontSize: 20, fontWeight: 300 }}>×</span>
-          <img src={logoNextstream} alt="Nextstream" style={{ height: 48, objectFit: 'contain' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 8 }}>
+          <img src={logoIcetel} alt="Icetel" style={{ height: 36, objectFit: 'contain' }} />
+          <span style={{ color: '#cbd5e1', fontSize: 16, fontWeight: 300 }}>×</span>
+          <img src={logoNextstream} alt="Nextstream" style={{ height: 36, objectFit: 'contain' }} />
         </div>
 
         <div className="brand" style={{ marginTop: 8 }}>
