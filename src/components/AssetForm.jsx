@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
 import Modal from './Modal.jsx'
-import { getFieldDefs, saveAsset } from '../lib/api.js'
+import { getFieldDefs, saveAsset, deleteAsset } from '../lib/api.js'
+import { useAuth } from '../auth/AuthContext.jsx'
 import FieldDefsEditor from './FieldDefsEditor.jsx'
 
-export default function AssetForm({ asset, type, onClose, onSaved }) {
+export default function AssetForm({ asset, type, onClose, onSaved, onDeleted }) {
+  const { isAdmin } = useAuth()
   const isNew = !asset.id
+
   const [defs, setDefs]         = useState(null)
   const [name, setName]         = useState(asset.name || '')
   const [altName, setAltName]   = useState(asset.alt_name || '')
   const [status, setStatus]     = useState(asset.status || '')
   const [data, setData]         = useState(asset.data || {})
   const [busy, setBusy]         = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [err, setErr]           = useState('')
   const [managingFields, setManagingFields] = useState(false)
 
@@ -33,22 +37,50 @@ export default function AssetForm({ asset, type, onClose, onSaved }) {
     } catch (e) { setErr(e.message); setBusy(false) }
   }
 
+  const handleDelete = async () => {
+    if (!confirm(`¿Eliminar el activo "${asset.name}"? Esta acción no se puede deshacer.`)) return
+    setDeleting(true); setErr('')
+    try {
+      await deleteAsset(asset.id)
+      onDeleted ? onDeleted() : onSaved()
+    } catch (e) { setErr(e.message); setDeleting(false) }
+  }
+
   if (!defs) return <Modal title="Cargando…" onClose={onClose}><div className="spinner" /></Modal>
 
   return (
     <>
-      <Modal size="lg" title={isNew ? 'Nuevo · ' + type.name : 'Editar · ' + asset.name} onClose={onClose}
-        footer={<>
-          <button className="btn" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={submit} disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
-        </>}>
+      <Modal
+        size="lg"
+        title={isNew ? 'Nuevo · ' + type.name : 'Editar · ' + asset.name}
+        onClose={onClose}
+        footer={
+          <>
+            {/* Botón eliminar — solo para admins editando un activo existente */}
+            {!isNew && isAdmin && (
+              <button
+                className="btn"
+                style={{ color: 'var(--danger, #dc2626)', borderColor: 'var(--danger, #dc2626)', marginRight: 'auto' }}
+                onClick={handleDelete}
+                disabled={deleting || busy}
+              >
+                {deleting ? 'Eliminando…' : '🗑 Eliminar activo'}
+              </button>
+            )}
+            <button className="btn" onClick={onClose} disabled={busy || deleting}>Cancelar</button>
+            <button className="btn btn-primary" onClick={submit} disabled={busy || deleting}>
+              {busy ? 'Guardando…' : 'Guardar'}
+            </button>
+          </>
+        }
+      >
         {err && <div className="error-text">{err}</div>}
 
         {!isNew && (
           <div className="field">
-            <label>ID unico (no cambia)</label>
+            <label>ID único (no cambia)</label>
             <input type="text" value={asset.id} readOnly style={{ fontFamily: 'monospace', color: 'var(--muted)' }} />
-            <span className="hint">El ITSM referencia este ID; el nombre puede cambiar sin perder el vinculo.</span>
+            <span className="hint">El ITSM referencia este ID; el nombre puede cambiar sin perder el vínculo.</span>
           </div>
         )}
 
@@ -87,22 +119,25 @@ export default function AssetForm({ asset, type, onClose, onSaved }) {
                   <option value="no">No</option>
                 </select>
               ) : (
-                <input type={f.field_type === 'number' ? 'number' : 'text'}
-                  value={data[f.key] ?? ''} onChange={(e) => setField(f.key, e.target.value)} />
+                <input
+                  type={f.field_type === 'number' ? 'number' : 'text'}
+                  value={data[f.key] ?? ''}
+                  onChange={(e) => setField(f.key, e.target.value)}
+                />
               )}
             </div>
           ))}
         </div>
 
         {defs.length === 0 && (
-          <p className="hint">Este tipo no tiene campos definidos aun. Usa <b>Gestionar campos</b> para agregarlos.</p>
+          <p className="hint">Este tipo no tiene campos definidos aún. Usa <b>Gestionar campos</b> para agregarlos.</p>
         )}
 
-        <div style={{ borderTop:'1px solid var(--border)', paddingTop:14, marginTop:4, display:'flex', alignItems:'center', gap:12 }}>
-          <button className="btn btn-sm" onClick={() => setManagingFields(true)} style={{ color:'var(--brand-light)' }}>
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 4, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className="btn btn-sm" onClick={() => setManagingFields(true)} style={{ color: 'var(--brand-light)' }}>
             ⚙ Gestionar campos del tipo
           </button>
-          <span className="hint">Agrega o elimina columnas de informacion para todos los activos de este tipo</span>
+          <span className="hint">Agrega o elimina columnas de información para todos los activos de este tipo</span>
         </div>
       </Modal>
 
