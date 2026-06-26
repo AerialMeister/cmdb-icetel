@@ -104,6 +104,57 @@ function DonutChart({ systems, counts }) {
   )
 }
 
+/* --- Gráfico de barras: activos por ubicación --- */
+function BarChart({ assets }) {
+  // Busca el campo ubicación en data (key puede ser 'ubicacion', 'ubicación', 'location', etc.)
+  const LOCATION_KEYS = ['ubicacion', 'ubicación', 'location', 'ubicacion_fisica', 'ubicacion fisica', 'sala', 'rack_ubicacion']
+  const counts = {}
+  for (const a of assets) {
+    if (!a.data) continue
+    let val = null
+    for (const k of Object.keys(a.data)) {
+      if (LOCATION_KEYS.includes(k.toLowerCase().trim())) { val = a.data[k]; break }
+    }
+    if (!val || String(val).trim() === '') val = 'Sin ubicación'
+    const label = String(val).trim()
+    counts[label] = (counts[label] || 0) + 1
+  }
+
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1])
+  if (entries.length === 0) return null
+
+  const max = Math.max(...entries.map(e => e[1]))
+  const COLORS = ['#1d4ed8','#16a34a','#7c3aed','#d97706','#dc2626','#0891b2','#db2777']
+
+  return (
+    <div style={{ background:'var(--panel)', border:'1px solid var(--border)', borderRadius:14, padding:'16px 24px', marginBottom:20, boxShadow:'var(--shadow)', flex:1, minWidth:0 }}>
+      <div style={{ fontSize:13, fontWeight:700, color:'var(--muted)', marginBottom:14, textTransform:'uppercase', letterSpacing:'0.05em' }}>
+        Activos por ubicación
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {entries.map(([label, count], i) => (
+          <div key={label} style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:120, fontSize:12, color:'var(--text)', textAlign:'right', flexShrink:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }} title={label}>
+              {label}
+            </div>
+            <div style={{ flex:1, background:'var(--border)', borderRadius:6, height:20, overflow:'hidden' }}>
+              <div style={{
+                width: (count / max * 100) + '%',
+                background: COLORS[i % COLORS.length],
+                height:'100%', borderRadius:6,
+                transition:'width 0.4s ease',
+                display:'flex', alignItems:'center', justifyContent:'flex-end', paddingRight:6,
+              }}>
+                <span style={{ fontSize:11, fontWeight:700, color:'#fff' }}>{count}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* --- Export helper --- */
 async function buildStyledExcel(getSystems, getAllAssetTypes, getAllAssets, getFieldDefs, getAssets) {
   const ExcelJS = await loadExcelJS()
@@ -245,6 +296,7 @@ async function buildStyledExcel(getSystems, getAllAssetTypes, getAllAssets, getF
 function SystemsLevel({ canEdit, onOpenSystem }) {
   const [items, setItems]         = useState(null)
   const [counts, setCounts]        = useState({})
+  const [allAssets, setAllAssets]  = useState([])
   const [editing, setEditing]      = useState(null)
   const [importing, setImporting]  = useState(false)
   const [exporting, setExporting]  = useState(false)
@@ -263,6 +315,7 @@ function SystemsLevel({ canEdit, onOpenSystem }) {
         if (sid && c[sid] !== undefined) c[sid]++
       })
       setCounts(c)
+      setAllAssets(assets)
     } catch (e) { alert(e.message) }
   }, [])
   useEffect(() => { load() }, [load])
@@ -297,7 +350,10 @@ function SystemsLevel({ canEdit, onOpenSystem }) {
         {canEdit && <button className='btn btn-primary' onClick={() => setEditing({})}><IconPlus width={18} height={18} /> Nuevo sistema</button>}
       </div>
 
-      <DonutChart systems={items} counts={counts} />
+      <div style={{ display:'flex', gap:20, flexWrap:'wrap', alignItems:'stretch' }}>
+        <div style={{ flexShrink:0 }}><DonutChart systems={items} counts={counts} /></div>
+        <BarChart assets={allAssets} />
+      </div>
 
       <div className='grid'>
         {items.map(s => (

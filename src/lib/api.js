@@ -169,7 +169,7 @@ export function slugify(s) {
 export async function getAllAssets() {
   const { data, error } = await supabase
     .from('cmdb_assets')
-    .select('id, asset_type_id')
+    .select('id, asset_type_id, data')
   if (error) throw error
   return data
 }
