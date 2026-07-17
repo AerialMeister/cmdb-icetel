@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient.js'
-import AssetDetail from './AssetDetail.jsx'
 import { useAuth } from '../auth/AuthContext.jsx'
 import {
   getSystems, getAssetTypes, getAssets, getFieldDefs, deleteSystem, deleteAssetType, deleteAsset,
