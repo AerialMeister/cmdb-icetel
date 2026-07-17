@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { supabase } from '../supabaseClient.js'
+import AssetDetail from './AssetDetail.jsx'
 import { useAuth } from '../auth/AuthContext.jsx'
 import {
   getSystems, getAssetTypes, getAssets, getFieldDefs, deleteSystem, deleteAssetType, deleteAsset,
@@ -104,6 +106,130 @@ function DonutChart({ systems, counts }) {
   )
 }
 
+/* --- Gráfico de barras: activos por ubicación --- */
+function LocationCard({ assets }) {
+  const LOCATION_KEYS = ['ubicacion', 'ubicación', 'location', 'ubicacion_fisica', 'ubicacion fisica', 'sala', 'rack_ubicacion']
+  const counts = {}
+  for (const a of assets) {
+    if (!a.data) continue
+    let val = null
+    for (const k of Object.keys(a.data)) {
+      if (LOCATION_KEYS.includes(k.toLowerCase().trim())) { val = a.data[k]; break }
+    }
+    if (!val || String(val).trim() === '') continue
+    const label = String(val).trim()
+    counts[label] = (counts[label] || 0) + 1
+  }
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1])
+  if (entries.length === 0) return null
+  return (
+    <div style={{ background:'var(--panel)', border:'1px solid var(--border)', borderRadius:14, padding:'14px 24px', marginBottom:20, boxShadow:'var(--shadow)' }}>
+      <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', marginBottom:12, textTransform:'uppercase', letterSpacing:'0.05em' }}>
+        Activos por ubicación
+      </div>
+      <div style={{ display:'flex', flexWrap:'wrap', gap:'8px 20px' }}>
+        {entries.map(([label, count]) => (
+          <div key={label} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 14px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8 }}>
+            <span style={{ fontSize:13, color:'var(--text)' }}>{label}</span>
+            <span style={{ fontSize:14, fontWeight:700, color:'var(--brand, #1d4ed8)', minWidth:20, textAlign:'center' }}>{count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
+/* --- Buscador global integrado --- */
+function GlobalSearchBar() {
+  const [q, setQ]             = useState('')
+  const [results, setResults] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [detail, setDetail]   = useState(null)
+  const timer = useRef(null)
+
+  useEffect(() => {
+    clearTimeout(timer.current)
+    const query = q.trim()
+    if (query.length < 2) { setResults([]); return }
+    timer.current = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const { data, error } = await supabase
+          .from('cmdb_assets')
+          .select('id, name, alt_name, status, data, asset_type_id, cmdb_asset_types ( id, name, illustration, cmdb_systems ( id, name ) )')
+          .ilike('name', `%${query}%`)
+          .limit(20)
+        if (error) throw error
+        setResults(data || [])
+      } catch { setResults([]) }
+      finally { setLoading(false) }
+    }, 250)
+    return () => clearTimeout(timer.current)
+  }, [q])
+
+  return (
+    <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 24px', marginBottom: 20, boxShadow: 'var(--shadow)' }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Búsqueda rápida de activos
+      </div>
+      <div style={{ position: 'relative', marginBottom: 14 }}>
+        <IconSearch width={16} height={16} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--muted)' }} />
+        <input
+          type="text"
+          className="search-input"
+          style={{ width: '100%', paddingLeft: 36, boxSizing: 'border-box' }}
+          placeholder="Escribe el nombre del activo…"
+          value={q}
+          onChange={e => setQ(e.target.value)}
+        />
+      </div>
+      {loading && <div style={{ textAlign: 'center', padding: 12 }}><div className="spinner" /></div>}
+      {!loading && q.trim().length >= 2 && results.length === 0 && (
+        <div className="empty">No se encontraron activos con ese nombre.</div>
+      )}
+      {!loading && results.length > 0 && (
+        <div className="table-wrap" style={{ maxHeight: 320, overflowY: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Nombre alternativo</th>
+                <th>Tipo</th>
+                <th>Sistema</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map(a => (
+                <tr key={a.id} onClick={() => setDetail(a)} style={{ cursor: 'pointer' }}>
+                  <td style={{ fontWeight: 600 }}>{a.name}</td>
+                  <td>{a.alt_name || '—'}</td>
+                  <td>{a.cmdb_asset_types?.name || '—'}</td>
+                  <td>{a.cmdb_asset_types?.cmdb_systems?.name || '—'}</td>
+                  <td><StatusPill status={a.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {!loading && q.trim().length < 2 && (
+        <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>Ingresa al menos 2 caracteres para buscar en todos los sistemas.</p>
+      )}
+      {detail && detail.cmdb_asset_types && (
+        <AssetDetail
+          asset={detail}
+          type={detail.cmdb_asset_types}
+          system={detail.cmdb_asset_types.cmdb_systems || { name: '—' }}
+          canEdit={false}
+          onClose={() => setDetail(null)}
+          onEdit={() => {}}
+        />
+      )}
+    </div>
+  )
+}
 
 /* --- Export helper --- */
 async function buildStyledExcel(getSystems, getAllAssetTypes, getAllAssets, getFieldDefs, getAssets) {
@@ -301,6 +427,7 @@ function SystemsLevel({ canEdit, onOpenSystem }) {
       </div>
 
       <DonutChart systems={items} counts={counts} />
+      <GlobalSearchBar />
 
       <div className='grid'>
         {items.map(s => (
