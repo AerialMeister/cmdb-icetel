@@ -426,7 +426,6 @@ function SystemsLevel({ canEdit, onOpenSystem }) {
       </div>
 
       <DonutChart systems={items} counts={counts} />
-      <GlobalSearchBar />
 
       <div className='grid'>
         {items.map(s => (
@@ -445,6 +444,8 @@ function SystemsLevel({ canEdit, onOpenSystem }) {
         ))}
         {items.length === 0 && <div className='empty'>No hay sistemas todavia.</div>}
       </div>
+
+      <GlobalSearchBar />
 
       {editing   && <SystemForm system={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
       {importing && <ImportModal onClose={() => setImporting(false)} onDone={() => { setImporting(false); load() }} />}

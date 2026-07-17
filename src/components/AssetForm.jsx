@@ -1,48 +1,47 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import Modal from './Modal.jsx'
-import { getFieldDefs, saveAsset, deleteAsset, getAssets, getAssetTypes } from '../lib/api.js'
+import { getFieldDefs, saveAsset, deleteAsset } from '../lib/api.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import FieldDefsEditor from './FieldDefsEditor.jsx'
 import { supabase } from '../supabaseClient.js'
 
 // Detecta si un field_def es el campo "tableros aguas abajo"
-const isTablerosAbajo = (f) =>
-  ['tablero_aguas_abajo', 'tableros_aguas_abajo', 'aguas_abajo', 'tablero aguas abajo', 'tableros aguas abajo']
-    .includes((f.key || '').toLowerCase().trim()) ||
-  ['tablero aguas abajo', 'tableros aguas abajo', 'aguas abajo']
-    .includes((f.label || '').toLowerCase().trim())
+const isTablerosAbajo = (f) => {
+  const key   = (f.key   || '').toLowerCase().trim()
+  const label = (f.label || '').toLowerCase().trim()
+  return key === 'tablero_aguas_abajo' ||
+         key === 'tableros_aguas_abajo' ||
+         label.includes('aguas abajo')
+}
 
-// Campo especial: lista de tableros aguas abajo con búsqueda
+// Parsea el valor guardado (JSON array o texto libre separado por comas)
+function parseList(value) {
+  if (Array.isArray(value)) return value.filter(Boolean)
+  if (!value || String(value).trim() === '') return ['']
+  try {
+    const p = JSON.parse(value)
+    if (Array.isArray(p)) return p.filter(Boolean).length ? p.filter(Boolean) : ['']
+  } catch {}
+  return String(value).split(',').map(s => s.trim()).filter(Boolean)
+}
+
+// Campo especial: lista dinámica de tableros con búsqueda
 function TablerosAbajoField({ value, onChange }) {
-  // value es un array de strings (nombres de tableros)
-  const parsed = (() => {
-    if (Array.isArray(value)) return value
-    if (typeof value === 'string' && value.trim()) {
-      try { const p = JSON.parse(value); if (Array.isArray(p)) return p } catch {}
-      return value.split(',').map(s => s.trim()).filter(Boolean)
-    }
-    return ['']
-  })()
+  const [items, setItems]   = useState(() => parseList(value))
+  const [tableros, setTableros] = useState([])
+  const [openIdx, setOpenIdx]   = useState(null)
+  const [queries, setQueries]   = useState({})
 
-  const [items, setItems] = useState(parsed.length ? parsed : [''])
-  const [tableros, setTableros] = useState([])   // todos los tableros disponibles
-  const [query, setQuery] = useState({})          // { index: string }
-  const [open, setOpen] = useState(null)          // índice del dropdown abierto
-
-  // Cargar todos los activos de tipo "Tablero eléctrico"
+  // Carga todos los tableros existentes
   useEffect(() => {
     async function load() {
       try {
         const { data: types } = await supabase
-          .from('cmdb_asset_types')
-          .select('id, name')
-          .ilike('name', '%tablero%')
+          .from('cmdb_asset_types').select('id').ilike('name', '%tablero%')
         if (!types?.length) return
-        const ids = types.map(t => t.id)
         const { data: assets } = await supabase
-          .from('cmdb_assets')
-          .select('id, name')
-          .in('asset_type_id', ids)
+          .from('cmdb_assets').select('id, name')
+          .in('asset_type_id', types.map(t => t.id))
           .order('name')
         setTableros(assets || [])
       } catch {}
@@ -50,17 +49,18 @@ function TablerosAbajoField({ value, onChange }) {
     load()
   }, [])
 
-  const update = (newItems) => {
+  const commit = (newItems) => {
     setItems(newItems)
     onChange(JSON.stringify(newItems.filter(Boolean)))
   }
 
-  const setItem = (i, v) => { const n = [...items]; n[i] = v; update(n) }
-  const addItem  = () => { update([...items, '']) }
-  const removeItem = (i) => { const n = items.filter((_, idx) => idx !== i); update(n.length ? n : ['']) }
+  const setItem   = (i, v) => { const n = [...items]; n[i] = v; commit(n) }
+  const addItem   = ()     => commit([...items, ''])
+  const removeItem = (i)   => { const n = items.filter((_, idx) => idx !== i); commit(n.length ? n : ['']) }
 
   const filtered = (i) => {
-    const q = (query[i] || '').toLowerCase()
+    const q = (queries[i] || '').toLowerCase()
+    if (!q) return tableros
     return tableros.filter(t => t.name.toLowerCase().includes(q))
   }
 
@@ -71,28 +71,33 @@ function TablerosAbajoField({ value, onChange }) {
           <div style={{ flex: 1, position: 'relative' }}>
             <input
               type="text"
-              value={query[i] !== undefined ? query[i] : val}
               placeholder="Buscar tablero…"
               style={{ width: '100%' }}
-              onFocus={() => { setOpen(i); setQuery(q => ({ ...q, [i]: val })) }}
-              onChange={e => setQuery(q => ({ ...q, [i]: e.target.value }))}
-              onBlur={() => setTimeout(() => setOpen(null), 150)}
+              value={queries[i] !== undefined ? queries[i] : val}
+              onFocus={() => {
+                setOpenIdx(i)
+                setQueries(q => ({ ...q, [i]: val }))
+              }}
+              onChange={e => setQueries(q => ({ ...q, [i]: e.target.value }))}
+              onBlur={() => setTimeout(() => setOpenIdx(null), 160)}
             />
-            {open === i && (
+            {openIdx === i && (
               <div style={{
-                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
                 background: 'var(--panel)', border: '1px solid var(--border)',
-                borderRadius: 8, maxHeight: 180, overflowY: 'auto', boxShadow: 'var(--shadow)',
+                borderRadius: 8, maxHeight: 200, overflowY: 'auto', boxShadow: 'var(--shadow)',
               }}>
-                {filtered(i).length === 0 && (
+                {filtered(i).length === 0 ? (
                   <div style={{ padding: '8px 12px', color: 'var(--muted)', fontSize: 13 }}>Sin resultados</div>
-                )}
-                {filtered(i).map(t => (
-                  <div key={t.id}
-                    style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13 }}
-                    onMouseDown={() => { setItem(i, t.name); setQuery(q => { const n = {...q}; delete n[i]; return n }) }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--border)'}
-                    onMouseLeave={e => e.currentTarget.style.background = ''}
+                ) : filtered(i).map(t => (
+                  <div
+                    key={t.id}
+                    style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)' }}
+                    onMouseDown={() => {
+                      setItem(i, t.name)
+                      setQueries(q => { const n = { ...q }; delete n[i]; return n })
+                      setOpenIdx(null)
+                    }}
                   >
                     {t.name}
                   </div>
@@ -105,12 +110,12 @@ function TablerosAbajoField({ value, onChange }) {
             className="btn btn-sm"
             style={{ color: 'var(--danger, #dc2626)', flexShrink: 0 }}
             onClick={() => removeItem(i)}
-            title="Quitar"
+            title="Quitar fila"
           >✕</button>
         </div>
       ))}
       <button type="button" className="btn btn-sm" onClick={addItem} style={{ marginTop: 4 }}>
-        + Agregar tablero
+        + Agregar tablero aguas abajo
       </button>
     </div>
   )
