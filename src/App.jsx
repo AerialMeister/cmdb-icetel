@@ -4,11 +4,14 @@ import { supabaseConfigured } from './supabaseClient.js'
 import Login from './components/Login.jsx'
 import BrowseView from './components/BrowseView.jsx'
 import UsersAdmin from './components/UsersAdmin.jsx'
-import { IconChip, IconUsers, IconLogout } from './components/Icons.jsx'
+import GlobalSearch from './components/GlobalSearch.jsx'
+import { IconChip, IconUsers, IconLogout, IconSearch } from './components/Icons.jsx'
 
 function Shell() {
   const { session, displayName, role, loading, isAdmin, signOut } = useAuth()
   const [tab, setTab] = useState('browse')
+  const [browseKey, setBrowseKey] = useState(0)  // fuerza reset de BrowseView al volver al inicio
+  const [searchOpen, setSearchOpen] = useState(false)
 
   if (!supabaseConfigured) {
     return (
@@ -25,7 +28,6 @@ function Shell() {
   if (loading) return <div className="center-screen"><div className="spinner" /></div>
   if (!session) return <Login />
 
-  // Usuario sin ningún rol asignado: mostrar pantalla de espera
   if (!role) {
     return (
       <div className="center-screen" style={{ flexDirection: 'column', gap: 12, textAlign: 'center' }}>
@@ -39,10 +41,21 @@ function Shell() {
     )
   }
 
+  const goHome = () => {
+    setTab('browse')
+    setBrowseKey(k => k + 1)  // resetea navegación interna de BrowseView al menú principal
+  }
+
   return (
     <>
       <header className="app-header">
-        <div className="logo">
+        {/* Logo clickeable → vuelve al menú principal */}
+        <button
+          className="logo"
+          onClick={goHome}
+          title="Volver al menú principal"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
           <svg width="26" height="26" viewBox="0 0 32 32">
             <rect width="32" height="32" rx="7" fill="#1d4ed8"/>
             <g fill="#fff">
@@ -52,7 +65,7 @@ function Shell() {
             </g>
           </svg>
           CMDB <span>Icetel</span>
-        </div>
+        </button>
 
         <nav className="tabs">
           <button
@@ -72,6 +85,18 @@ function Shell() {
         </nav>
 
         <div className="spacer" />
+
+        {/* Buscador global — solo visible en pestaña Activos */}
+        {tab === 'browse' && (
+          <button
+            className="btn"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={() => setSearchOpen(true)}
+            title="Buscar activo"
+          >
+            <IconSearch width={16} height={16} /> Buscar activo
+          </button>
+        )}
 
         <div className="user-chip">
           <span>{displayName}</span>
@@ -93,9 +118,11 @@ function Shell() {
       </header>
 
       <main className="container">
-        {tab === 'browse' && <BrowseView />}
+        {tab === 'browse' && <BrowseView key={browseKey} />}
         {tab === 'users'  && isAdmin && <UsersAdmin />}
       </main>
+
+      {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
     </>
   )
 }

@@ -104,38 +104,6 @@ function DonutChart({ systems, counts }) {
   )
 }
 
-/* --- Gráfico de barras: activos por ubicación --- */
-function LocationCard({ assets }) {
-  const LOCATION_KEYS = ['ubicacion', 'ubicación', 'location', 'ubicacion_fisica', 'ubicacion fisica', 'sala', 'rack_ubicacion']
-  const counts = {}
-  for (const a of assets) {
-    if (!a.data) continue
-    let val = null
-    for (const k of Object.keys(a.data)) {
-      if (LOCATION_KEYS.includes(k.toLowerCase().trim())) { val = a.data[k]; break }
-    }
-    if (!val || String(val).trim() === '') continue
-    const label = String(val).trim()
-    counts[label] = (counts[label] || 0) + 1
-  }
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1])
-  if (entries.length === 0) return null
-  return (
-    <div style={{ background:'var(--panel)', border:'1px solid var(--border)', borderRadius:14, padding:'14px 24px', marginBottom:20, boxShadow:'var(--shadow)' }}>
-      <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', marginBottom:12, textTransform:'uppercase', letterSpacing:'0.05em' }}>
-        Activos por ubicación
-      </div>
-      <div style={{ display:'flex', flexWrap:'wrap', gap:'8px 20px' }}>
-        {entries.map(([label, count]) => (
-          <div key={label} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 14px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8 }}>
-            <span style={{ fontSize:13, color:'var(--text)' }}>{label}</span>
-            <span style={{ fontSize:14, fontWeight:700, color:'var(--brand, #1d4ed8)', minWidth:20, textAlign:'center' }}>{count}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 /* --- Export helper --- */
 async function buildStyledExcel(getSystems, getAllAssetTypes, getAllAssets, getFieldDefs, getAssets) {
@@ -333,7 +301,6 @@ function SystemsLevel({ canEdit, onOpenSystem }) {
       </div>
 
       <DonutChart systems={items} counts={counts} />
-      <LocationCard assets={allAssets} />
 
       <div className='grid'>
         {items.map(s => (
