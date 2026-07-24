@@ -109,6 +109,49 @@ export async function deleteAsset(id) {
   if (error) throw error
 }
 
+// ---------- Circuitos de tableros eléctricos ----------
+export async function getCircuitos(assetId) {
+  const { data, error } = await supabase
+    .from('cmdb_circuitos').select('*')
+    .eq('asset_id', assetId)
+    .order('sort_order').order('created_at')
+  if (error) throw error
+  return data
+}
+
+export async function saveCircuito(c) {
+  const row = {
+    asset_id: c.asset_id,
+    tipo: c.tipo || 'carga',
+    marca: c.marca || null,
+    capacidad: c.capacidad || null,
+    numero_circuito: c.numero_circuito || null,
+    tag_circuito: c.tag_circuito || null,
+    sort_order: c.sort_order ?? 0,
+  }
+  if (c.id) {
+    const { data, error } = await supabase.from('cmdb_circuitos').update(row).eq('id', c.id).select().single()
+    if (error) throw error
+    return data
+  }
+  const { data, error } = await supabase.from('cmdb_circuitos').insert(row).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteCircuito(id) {
+  const { error } = await supabase.from('cmdb_circuitos').delete().eq('id', id)
+  if (error) throw error
+}
+
+// Reordena en lote: rows = [{ id, sort_order }]
+export async function reorderCircuitos(rows) {
+  for (const r of rows) {
+    const { error } = await supabase.from('cmdb_circuitos').update({ sort_order: r.sort_order }).eq('id', r.id)
+    if (error) throw error
+  }
+}
+
 // ---------- Importación masiva ----------
 export async function getAllAssetTypes() {
   const { data, error } = await supabase

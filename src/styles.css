@@ -249,6 +249,65 @@ tbody tr:hover .col-pin { background: #f8fafc; }
 .spinner { width: 26px; height: 26px; border: 3px solid var(--border); border-top-color: var(--brand-light); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ---------- Diagrama unifilar de circuitos ---------- */
+.circ-canvas {
+  background: #f8fafc; border: 1px solid var(--border); border-radius: 12px;
+  padding: 22px 18px 26px; overflow-x: auto;
+}
+.circ-general-wrap { display: flex; justify-content: center; }
+.circ-drop { width: 2px; height: 26px; background: #94a3b8; margin: 0 auto; }
+.circ-bus {
+  position: relative; height: 8px; background: #0f3d6b; border-radius: 4px;
+  min-width: 260px; margin: 0 8px;
+}
+.circ-bus-label {
+  position: absolute; right: 0; top: -17px; font-size: 10px; font-weight: 700;
+  letter-spacing: .1em; color: #64748b;
+}
+.circ-branches {
+  display: flex; gap: 18px; align-items: flex-start;
+  justify-content: flex-start; padding: 0 8px; min-width: min-content;
+}
+.circ-branch { display: flex; flex-direction: column; align-items: center; }
+.circ-branch-line { width: 2px; height: 22px; background: #94a3b8; }
+
+.circ-block {
+  position: relative; width: 148px; min-height: 148px; background: #fff;
+  border: 2px solid #1d4ed8; border-radius: 10px; padding: 10px 8px 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  box-shadow: 0 1px 3px rgba(15,23,42,.08);
+}
+.circ-block-general { border-color: #0f3d6b; border-width: 3px; width: 172px; }
+.circ-block-actions {
+  position: absolute; top: 4px; right: 4px; display: flex; gap: 0; opacity: 0;
+  transition: opacity .12s;
+}
+.circ-block:hover .circ-block-actions { opacity: 1; }
+.circ-block-actions .btn-ghost { padding: 3px 5px; line-height: 1; font-size: 15px; }
+.circ-block-tag {
+  font-size: 11px; font-weight: 800; letter-spacing: .06em; color: #0f3d6b;
+  text-transform: uppercase; margin-bottom: 2px;
+}
+.circ-block-cap { font-size: 15px; font-weight: 700; color: var(--text); }
+.circ-block-marca { font-size: 11px; color: var(--muted); }
+.circ-block-desc {
+  font-size: 11px; color: var(--text); text-align: center; margin-top: 4px;
+  padding-top: 5px; border-top: 1px dashed var(--border); width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.circ-add {
+  width: 148px; min-height: 148px; border: 2px dashed #94a3b8; border-radius: 10px;
+  background: transparent; color: #64748b; cursor: pointer; font-size: 12px;
+  font-weight: 600; font-family: inherit;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+}
+.circ-add:hover { border-color: #1d4ed8; color: #1d4ed8; background: #eff6ff; }
+.circ-add-general { flex-direction: row; width: 260px; min-height: 84px; }
+.circ-empty-slot {
+  color: var(--muted); font-size: 13px; padding: 26px 18px; text-align: center;
+  border: 1px dashed var(--border); border-radius: 10px; width: 100%;
+}
+
 /* chips de campo dinamico en editor */
 .fielddef-row { display: grid; grid-template-columns: 1fr 1fr 130px auto; gap: 10px; align-items: end; }
 @media (max-width: 640px) { .fielddef-row { grid-template-columns: 1fr 1fr; } }

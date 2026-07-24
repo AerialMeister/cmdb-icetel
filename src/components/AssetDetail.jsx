@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import Modal from './Modal.jsx'
 import AssetIllustration from './AssetIllustration.jsx'
+import { IconChip } from './Icons.jsx'
 import { StatusPill } from './BrowseView.jsx'
 import { getFieldDefs } from '../lib/api.js'
 import { supabase } from '../supabaseClient.js'
+import CircuitosModal from './CircuitosModal.jsx'
 
 // Parsea el campo tablero_aguas_abajo (JSON array, texto libre o vacío)
 function parseTablerosAbajo(v) {
@@ -37,6 +39,10 @@ async function loadCadenaElectrica(tableroNombre) {
 export default function AssetDetail({ asset, type, system, canEdit, onClose, onEdit }) {
   const [defs, setDefs]     = useState(null)
   const [cadena, setCadena] = useState(null)
+  const [verCircuitos, setVerCircuitos] = useState(false)
+
+  // El detalle de circuitos aplica a los tipos de activo "tablero ..."
+  const esTablero = (type?.name || '').toLowerCase().includes('tablero')
 
   useEffect(() => { getFieldDefs(type.id).then(setDefs).catch(() => setDefs([])) }, [type.id])
 
@@ -50,6 +56,11 @@ export default function AssetDetail({ asset, type, system, canEdit, onClose, onE
   return (
     <Modal size="lg" title={asset.name} onClose={onClose}
       footer={<>
+        {esTablero && (
+          <button className="btn" style={{ marginRight: 'auto' }} onClick={() => setVerCircuitos(true)}>
+            <IconChip width={17} height={17} /> Ver detalle de circuitos
+          </button>
+        )}
         <button className="btn" onClick={onClose}>Cerrar</button>
         {canEdit && <button className="btn btn-primary" onClick={onEdit}>Editar</button>}
       </>}>
@@ -131,6 +142,10 @@ export default function AssetDetail({ asset, type, system, canEdit, onClose, onE
             ))}
           </div>
         </div>
+      )}
+
+      {verCircuitos && (
+        <CircuitosModal asset={asset} canEdit={canEdit} onClose={() => setVerCircuitos(false)} />
       )}
     </Modal>
   )
