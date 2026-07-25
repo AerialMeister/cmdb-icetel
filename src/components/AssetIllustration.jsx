@@ -14,9 +14,7 @@ function UpsModular() {
           <rect x="58" y={77 + i*38} width="34" height="6" rx="3" fill={C.steel}/>
           <circle cx="138" cy={75 + i*38} r="4" fill={C.on}/>
         </g>
-      ))}
-      <text x="100" y="225" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">UPS MODULAR</text>
-    </svg>
+      ))}    </svg>
   )
 }
 
@@ -33,9 +31,7 @@ function Genset() {
       <circle cx="187" cy="98" r="13" fill={C.steel} stroke={C.dark} strokeWidth="2"/>
       <rect x="60" y="26" width="14" height="42" rx="4" fill="#64748b"/>
       <ellipse cx="67" cy="24" rx="10" ry="6" fill="#94a3b8"/>
-      <circle cx="214" cy="60" r="4" fill={C.on}/>
-      <text x="130" y="170" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">GRUPO ELECTRÓGENO</text>
-    </svg>
+      <circle cx="214" cy="60" r="4" fill={C.on}/>    </svg>
   )
 }
 
@@ -82,9 +78,7 @@ function Tablero() {
             </g>
           ))}
         </g>
-      ))}
-      <text x="100" y="212" textAnchor="middle" fontSize="10" fill={C.dark} fontFamily="sans-serif">TABLERO ELÉCTRICO</text>
-    </svg>
+      ))}    </svg>
   )
 }
 
@@ -110,9 +104,7 @@ function CracPrecision() {
         <path d="M62 200 v8 M62 208 l-3 -3 M62 208 l3 -3"/>
         <path d="M100 200 v8 M100 208 l-3 -3 M100 208 l3 -3"/>
         <path d="M138 200 v8 M138 208 l-3 -3 M138 208 l3 -3"/>
-      </g>
-      <text x="100" y="226" textAnchor="middle" fontSize="9" fill={C.dark} fontFamily="sans-serif">CLIMA DE PRECISIÓN</text>
-    </svg>
+      </g>    </svg>
   )
 }
 
@@ -126,9 +118,7 @@ function SplitHvac() {
       <rect x="150" y="28" width="40" height="9" rx="2" fill="#bfdbfe"/>
       <g stroke={C.accent} strokeWidth="2.5" fill="none">
         <path d="M60 84 q6 12 0 24"/><path d="M110 84 q6 12 0 24"/><path d="M160 84 q6 12 0 24"/>
-      </g>
-      <text x="120" y="138" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">AIRE ACONDICIONADO SPLIT</text>
-    </svg>
+      </g>    </svg>
   )
 }
 
@@ -141,9 +131,7 @@ function Bomba() {
       <circle cx="160" cy="100" r="34" fill={C.panel} stroke={C.dark} strokeWidth="3"/>
       <circle cx="160" cy="100" r="13" fill={C.steel} stroke={C.dark} strokeWidth="2"/>
       <rect x="150" y="36" width="20" height="34" rx="3" fill={C.accent}/>
-      <rect x="188" y="92" width="34" height="18" rx="3" fill={C.accent}/>
-      <text x="120" y="162" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">BOMBA DE AGUA</text>
-    </svg>
+      <rect x="188" y="92" width="34" height="18" rx="3" fill={C.accent}/>    </svg>
   )
 }
 
@@ -158,9 +146,7 @@ function BancoBateria() {
           <rect x={63+c*44} y={22+r*48} width="6" height="5" fill="#0f172a"/>
           <line x1={38+c*44} y1={43+r*48} x2={74+c*44} y2={43+r*48} stroke="#94a3b8" strokeWidth="1.4"/>
         </g>
-      )))}
-      <text x="120" y="186" textAnchor="middle" fontSize="10" fill={C.dark} fontFamily="sans-serif">BANCO DE BATERÍAS</text>
-    </svg>
+      )))}    </svg>
   )
 }
 
@@ -176,9 +162,7 @@ function CeldaMT() {
       <path d="M85 105 v18" stroke={C.dark} strokeWidth="3"/>
       <path d="M70 126 h30" stroke={C.dark} strokeWidth="3"/>
       <rect x="42" y="150" width="86" height="10" rx="2" fill={C.warn}/>
-      {[0,1,2].map(i => <circle key={i} cx={58+i*27} cy="176" r="8" fill="#fde68a" stroke={C.dark} strokeWidth="2"/>)}
-      <text x="85" y="208" textAnchor="middle" fontSize="10" fill={C.dark} fontFamily="sans-serif">CELDA MT</text>
-    </svg>
+      {[0,1,2].map(i => <circle key={i} cx={58+i*27} cy="176" r="8" fill="#fde68a" stroke={C.dark} strokeWidth="2"/>)}    </svg>
   )
 }
 
@@ -189,9 +173,7 @@ function TransformadorMT() {
       {[0,1,2,3].map(i => <rect key={'l'+i} x={46} y={64+i*20} width="14" height="14" rx="2" fill={C.panel} stroke={C.dark} strokeWidth="1.5"/>)}
       {[0,1,2,3].map(i => <rect key={'r'+i} x={180} y={64+i*20} width="14" height="14" rx="2" fill={C.panel} stroke={C.dark} strokeWidth="1.5"/>)}
       {[0,1,2].map(i => (<g key={'at'+i}><rect x={78+i*22} y="40" width="6" height="18" fill="#64748b"/><circle cx={81+i*22} cy="36" r="7" fill="#fca5a5" stroke={C.dark} strokeWidth="1.6"/></g>))}
-      {[0,1,2,3].map(i => (<g key={'bt'+i}><rect x={150+i*8} y="44" width="4" height="14" fill="#64748b"/><circle cx={152+i*8} cy="42" r="4.5" fill="#0f172a"/></g>))}
-      <text x="120" y="178" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">TRANSFORMADOR MT</text>
-    </svg>
+      {[0,1,2,3].map(i => (<g key={'bt'+i}><rect x={150+i*8} y="44" width="4" height="14" fill="#64748b"/><circle cx={152+i*8} cy="42" r="4.5" fill="#0f172a"/></g>))}    </svg>
   )
 }
 
@@ -202,9 +184,7 @@ function TorreEnfriamiento() {
       {[0,1,2,3].map(i => <line key={i} x1="68" y1={150-i*16} x2="152" y2={150-i*16} stroke={C.steel} strokeWidth="3"/>)}
       <ellipse cx="110" cy="66" rx="64" ry="12" fill={C.panel} stroke={C.dark} strokeWidth="3"/>
       <g stroke={C.dark} strokeWidth="2"><line x1="70" y1="66" x2="150" y2="66"/><line x1="110" y1="56" x2="110" y2="76"/><line x1="84" y1="60" x2="136" y2="72"/><line x1="84" y1="72" x2="136" y2="60"/></g>
-      <g stroke={C.accent} strokeWidth="2.5" fill="none"><path d="M96 44 v-12 M96 32 l-3 3 M96 32 l3 3"/><path d="M124 44 v-12 M124 32 l-3 3 M124 32 l3 3"/></g>
-      <text x="110" y="200" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">TORRE DE ENFRIAMIENTO</text>
-    </svg>
+      <g stroke={C.accent} strokeWidth="2.5" fill="none"><path d="M96 44 v-12 M96 32 l-3 3 M96 32 l3 3"/><path d="M124 44 v-12 M124 32 l-3 3 M124 32 l3 3"/></g>    </svg>
   )
 }
 
@@ -219,9 +199,7 @@ function Chiller() {
       <circle cx="160" cy="78" r="18" fill={C.steel} stroke={C.dark} strokeWidth="2.5"/>
       <circle cx="200" cy="78" r="18" fill={C.steel} stroke={C.dark} strokeWidth="2.5"/>
       <rect x="150" y="110" width="68" height="9" rx="3" fill={C.accent}/>
-      <rect x="150" y="122" width="68" height="9" rx="3" fill="#60a5fa"/>
-      <text x="125" y="168" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">CHILLER</text>
-    </svg>
+      <rect x="150" y="122" width="68" height="9" rx="3" fill="#60a5fa"/>    </svg>
   )
 }
 
@@ -235,9 +213,7 @@ function AHC() {
       <circle cx="178" cy="82" r="30" fill={C.panel} stroke={C.dark} strokeWidth="2.5"/>
       <g fill={C.steel}><path d="M178 82 L178 54 a28 28 0 0 1 20 12 Z"/><path d="M178 82 L202 98 a28 28 0 0 1 -22 12 Z"/><path d="M178 82 L154 98 a28 28 0 0 1 -2 -26 Z"/></g>
       <circle cx="178" cy="82" r="5" fill={C.dark}/>
-      <g stroke={C.accent} strokeWidth="2.5" fill="none"><path d="M226 70 h12 M238 70 l-4 -3 M238 70 l-4 3"/><path d="M226 96 h12 M238 96 l-4 -3 M238 96 l-4 3"/></g>
-      <text x="125" y="158" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">AHC · MANEJADORA DE AIRE</text>
-    </svg>
+      <g stroke={C.accent} strokeWidth="2.5" fill="none"><path d="M226 70 h12 M238 70 l-4 -3 M238 70 l-4 3"/><path d="M226 96 h12 M238 96 l-4 -3 M238 96 l-4 3"/></g>    </svg>
   )
 }
 
@@ -252,9 +228,7 @@ function ACU() {
       })}
       <circle cx="105" cy="85" r="9" fill={C.dark}/>
       <rect x="44" y="146" width="22" height="12" rx="2" fill="#334155"/>
-      <rect x="144" y="146" width="22" height="12" rx="2" fill="#334155"/>
-      <text x="105" y="172" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">ACU · UNIDAD A/A</text>
-    </svg>
+      <rect x="144" y="146" width="22" height="12" rx="2" fill="#334155"/>    </svg>
   )
 }
 
@@ -269,9 +243,7 @@ function EstanqueCombustible() {
       <path d="M180 95 L180 84 M180 95 L188 99" stroke="#64748b" strokeWidth="2"/>
       <path d="M95 86 c0 -8 8 -12 8 -12 c0 0 8 4 8 12 a8 8 0 0 1 -16 0 Z" fill={C.warn}/>
       <rect x="70" y="132" width="30" height="14" rx="2" fill="#334155"/>
-      <rect x="150" y="132" width="30" height="14" rx="2" fill="#334155"/>
-      <text x="125" y="162" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">ESTANQUE DE COMBUSTIBLE</text>
-    </svg>
+      <rect x="150" y="132" width="30" height="14" rx="2" fill="#334155"/>    </svg>
   )
 }
 
@@ -297,9 +269,7 @@ function Alcantarilla() {
       </g>
       {/* flechas de flujo */}
       <path d="M56 140 l-8 -4 M56 140 l-8 4" stroke={C.accent} strokeWidth="2" fill="none"/>
-      <path d="M194 140 l-8 -4 M194 140 l-8 4" stroke={C.accent} strokeWidth="2" fill="none"/>
-      <text x="120" y="196" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">ALCANTARILLADO</text>
-    </svg>
+      <path d="M194 140 l-8 -4 M194 140 l-8 4" stroke={C.accent} strokeWidth="2" fill="none"/>    </svg>
   )
 }
 
@@ -324,9 +294,7 @@ function Ascensor() {
       <circle cx="100" cy="6" r="6" fill={C.steel} stroke={C.dark} strokeWidth="2"/>
       {/* flechas subir/bajar */}
       <path d="M170 90 v-14 M170 76 l-4 4 M170 76 l4 4" stroke={C.accent} strokeWidth="2.5" fill="none"/>
-      <path d="M170 140 v14 M170 154 l-4 -4 M170 154 l4 -4" stroke={C.accent} strokeWidth="2.5" fill="none"/>
-      <text x="100" y="215" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">ASCENSOR</text>
-    </svg>
+      <path d="M170 140 v14 M170 154 l-4 -4 M170 154 l4 -4" stroke={C.accent} strokeWidth="2.5" fill="none"/>    </svg>
   )
 }
 
@@ -346,9 +314,7 @@ function InstalacionFisica() {
       <rect x="98" y="152" width="44" height="38" rx="2" fill={C.brand} stroke={C.dark} strokeWidth="2"/>
       <circle cx="136" cy="172" r="3" fill="#fde68a"/>
       {/* suelo */}
-      <rect x="20" y="188" width="200" height="8" rx="2" fill={C.dark}/>
-      <text x="120" y="204" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">INSTALACIÓN FÍSICA</text>
-    </svg>
+      <rect x="20" y="188" width="200" height="8" rx="2" fill={C.dark}/>    </svg>
   )
 }
 
@@ -377,8 +343,37 @@ function SistemaMonitoreo() {
         </g>
       ))}
       {/* cable de red */}
-      <path d="M196 80 h6" stroke={C.accent} strokeWidth="2" strokeDasharray="3 2"/>
-      <text x="120" y="165" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">SISTEMA DE MONITOREO</text>
+      <path d="M196 80 h6" stroke={C.accent} strokeWidth="2" strokeDasharray="3 2"/>    </svg>
+  )
+}
+
+function Extintor() {
+  return (
+    <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg">
+      {/* manguera */}
+      <path d="M126 46 C 158 56, 162 104, 144 136" fill="none" stroke={C.dark} strokeWidth="5" strokeLinecap="round"/>
+      <path d="M144 136 l -7 24 l 20 0 z" fill={C.dark}/>
+      {/* cuerpo */}
+      <rect x="68" y="66" width="60" height="118" rx="15" fill="#dc2626" stroke={C.dark} strokeWidth="3"/>
+      {/* base */}
+      <rect x="64" y="180" width="68" height="11" rx="4" fill={C.dark}/>
+      {/* etiqueta */}
+      <rect x="76" y="100" width="44" height="44" rx="4" fill="#fef2f2" stroke={C.dark} strokeWidth="1.5"/>
+      <rect x="83" y="110" width="30" height="4" rx="2" fill={C.steel}/>
+      <rect x="83" y="120" width="30" height="4" rx="2" fill={C.steel}/>
+      <rect x="83" y="130" width="19" height="4" rx="2" fill={C.steel}/>
+      {/* cuello */}
+      <rect x="86" y="50" width="26" height="18" fill={C.steel} stroke={C.dark} strokeWidth="2"/>
+      {/* válvula y palanca */}
+      <rect x="76" y="32" width="46" height="20" rx="5" fill={C.dark}/>
+      <rect x="72" y="21" width="58" height="8" rx="4" fill={C.dark}/>
+      {/* pasador de seguridad */}
+      <circle cx="130" cy="26" r="6.5" fill="none" stroke={C.warn} strokeWidth="3"/>
+      {/* manómetro */}
+      <circle cx="58" cy="42" r="13" fill="#f8fafc" stroke={C.dark} strokeWidth="2.5"/>
+      <path d="M58 42 L 65 34" stroke={C.on} strokeWidth="2.5" strokeLinecap="round"/>
+      <circle cx="58" cy="42" r="2" fill={C.dark}/>
+      <path d="M69 44 L 78 44" stroke={C.dark} strokeWidth="4" strokeLinecap="round"/>
     </svg>
   )
 }
@@ -391,9 +386,7 @@ function Generic() {
       <rect x="56" y="74" width="88" height="10" rx="3" fill={C.panel}/>
       <rect x="56" y="92" width="60" height="10" rx="3" fill={C.panel}/>
       <rect x="56" y="110" width="74" height="10" rx="3" fill={C.panel}/>
-      <circle cx="132" cy="50" r="4" fill={C.on}/>
-      <text x="100" y="148" textAnchor="middle" fontSize="11" fill={C.dark} fontFamily="sans-serif">ACTIVO</text>
-    </svg>
+      <circle cx="132" cy="50" r="4" fill={C.on}/>    </svg>
   )
 }
 
@@ -421,6 +414,7 @@ export default function AssetIllustration({ illustration, data, imageUrl }) {
     case 'alcantarilla':        return <Alcantarilla />
     case 'ascensor':            return <Ascensor />
     case 'instalacion_fisica':  return <InstalacionFisica />
+    case 'extintor':            return <Extintor />
     case 'monitoreo':           return <SistemaMonitoreo />
     default:                    return <Generic />
   }

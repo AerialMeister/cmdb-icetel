@@ -13,6 +13,15 @@ import AssetDetail from './AssetDetail.jsx'
 import FieldDefsEditor from './FieldDefsEditor.jsx'
 import ImportModal from './ImportModal.jsx'
 import AssetIllustration from './AssetIllustration.jsx'
+import VigenciaExtintor from './VigenciaExtintor.jsx'
+import { esExtintor, fmtValorFecha } from '../lib/vigencia.js'
+
+// Valor de una celda de la tabla de activos (formatea las fechas)
+function celda(f, data) {
+  const v = data?.[f.key]
+  if (v == null || v === '') return '---'
+  return f.field_type === 'date' ? fmtValorFecha(v) : v
+}
 
 // Carga ExcelJS bajo demanda
 let excelJsPromise = null
@@ -338,7 +347,11 @@ async function buildStyledExcel(getSystems, getAllAssetTypes, getAllAssets, getF
       const values = [
         a.name || '', a.alt_name || '',
         a.status ? a.status.toUpperCase() : '',
-        ...defs.map(d => { const v = a.data?.[d.key]; return (v != null && v !== '') ? String(v) : '' })
+        ...defs.map(d => {
+          const v = a.data?.[d.key]
+          if (v == null || v === '') return ''
+          return d.field_type === 'date' ? fmtValorFecha(v) : String(v)
+        })
       ]
       const row = ws.getRow(rowIdx + 2)
       row.height = 18
@@ -555,6 +568,8 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
   const filtered = items.filter(a =>
     a.name.toLowerCase().includes(sq) || (a.alt_name || '').toLowerCase().includes(sq)
   )
+  // Columna de vigencia: solo para el tipo Extintores
+  const verVigencia = esExtintor(type)
 
   return (
     <>
@@ -583,6 +598,7 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
               <th className='col-altname'>Nombre alternativo</th>
               {fieldDefs.map(f => <th key={f.id} className='col-field'>{f.label}</th>)}
               <th className='col-status'>Estado</th>
+              {verVigencia && <th className='col-field'>Vigencia</th>}
               <th className='col-actions'></th>
             </tr>
           </thead>
@@ -592,9 +608,10 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
                 <td className='col-pin col-name' style={{ fontWeight:600 }}>{a.name}</td>
                 <td className='col-altname'>{a.alt_name || '---'}</td>
                 {fieldDefs.map(f => (
-                  <td key={f.id} className='col-field'>{(a.data?.[f.key] != null && a.data[f.key] !== '') ? a.data[f.key] : '---'}</td>
+                  <td key={f.id} className='col-field'>{celda(f, a.data)}</td>
                 ))}
                 <td className='col-status'><StatusPill status={a.status} /></td>
+                {verVigencia && <td className='col-field'><VigenciaExtintor data={a.data} /></td>}
                 <td className='col-actions'>
                   {canEdit && (
                     <div className='row-actions'>
@@ -606,7 +623,7 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={3 + fieldDefs.length + 1}><div className='empty'>No hay activos.</div></td></tr>
+              <tr><td colSpan={3 + fieldDefs.length + 1 + (verVigencia ? 1 : 0)}><div className='empty'>No hay activos.</div></td></tr>
             )}
           </tbody>
         </table>

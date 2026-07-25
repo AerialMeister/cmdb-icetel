@@ -18,6 +18,11 @@ const ILUSTRACIONES = [
   { key: 'acu', label: 'ACU · Unidad A/A' },
   { key: 'estanque_combustible', label: 'Estanque de combustible' },
   { key: 'clima', label: 'Climatización (CRAC/CRAH o split según campo "tipo")' },
+  { key: 'alcantarilla', label: 'Alcantarillado' },
+  { key: 'ascensor', label: 'Ascensor' },
+  { key: 'instalacion_fisica', label: 'Instalación física' },
+  { key: 'monitoreo', label: 'Sistema de monitoreo' },
+  { key: 'extintor', label: 'Extintor' },
 ]
 
 export default function AssetTypeForm({ type, systemId, onClose, onSaved }) {

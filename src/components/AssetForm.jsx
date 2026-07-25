@@ -241,7 +241,7 @@ export default function AssetForm({ asset, type, onClose, onSaved, onDeleted }) 
                 </select>
               ) : (
                 <input
-                  type={f.field_type === 'number' ? 'number' : 'text'}
+                  type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : 'text'}
                   value={data[f.key] ?? ''}
                   onChange={(e) => setField(f.key, e.target.value)}
                 />

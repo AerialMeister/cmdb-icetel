@@ -6,6 +6,8 @@ import { StatusPill } from './BrowseView.jsx'
 import { getFieldDefs } from '../lib/api.js'
 import { supabase } from '../supabaseClient.js'
 import CircuitosModal from './CircuitosModal.jsx'
+import VigenciaExtintor from './VigenciaExtintor.jsx'
+import { esExtintor, fmtValorFecha } from '../lib/vigencia.js'
 
 // Parsea el campo tablero_aguas_abajo (JSON array, texto libre o vacío)
 function parseTablerosAbajo(v) {
@@ -72,6 +74,16 @@ export default function AssetDetail({ asset, type, system, canEdit, onClose, onE
           </div>
         </div>
         <div>
+          {esExtintor(type) && (
+            <div style={{
+              marginBottom: 14, padding: '10px 14px',
+              background: 'var(--bg)', border: '1px solid var(--border)',
+              borderRadius: 8,
+            }}>
+              <VigenciaExtintor data={asset.data} />
+            </div>
+          )}
+
           <div className="detail-props" style={{ marginBottom: 18 }}>
             <Prop k="Nombre alternativo" v={asset.alt_name} />
             <Prop k="Sistema" v={system.name} />
@@ -119,7 +131,7 @@ export default function AssetDetail({ asset, type, system, canEdit, onClose, onE
                   )
                 }
 
-                return <Prop key={f.id} k={f.label} v={fmt(rawVal)} />
+                return <Prop key={f.id} k={f.label} v={fmt(rawVal, f)} />
               })}
             </div>
           )}
@@ -151,9 +163,10 @@ export default function AssetDetail({ asset, type, system, canEdit, onClose, onE
   )
 }
 
-function fmt(v) {
+function fmt(v, f) {
   if (v === 'si') return 'Sí'
   if (v === 'no') return 'No'
+  if (f?.field_type === 'date') return fmtValorFecha(v)
   return v
 }
 

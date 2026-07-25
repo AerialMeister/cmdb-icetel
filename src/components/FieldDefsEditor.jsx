@@ -8,6 +8,7 @@ const TIPOS = [
   { v: 'number', l: 'Número' },
   { v: 'boolean', l: 'Sí/No' },
   { v: 'select', l: 'Lista' },
+  { v: 'date', l: 'Fecha' },
 ]
 
 export default function FieldDefsEditor({ type, onClose }) {
