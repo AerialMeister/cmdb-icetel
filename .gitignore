@@ -3,3 +3,7 @@ dist
 .env
 .DS_Store
 *.local
+
+# Temporales que genera Vite al compilar la config
+vite.config.js.timestamp-*
+vite.config.*.timestamp-*
