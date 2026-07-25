@@ -252,24 +252,49 @@ tbody tr:hover .col-pin { background: #f8fafc; }
 /* ---------- Diagrama unifilar de circuitos ---------- */
 .circ-canvas {
   background: #f8fafc; border: 1px solid var(--border); border-radius: 12px;
-  padding: 22px 18px 26px; overflow-x: auto;
+  padding: 26px 18px 26px; overflow-x: auto;
+  display: flex; justify-content: center;
 }
-.circ-general-wrap { display: flex; justify-content: center; }
-.circ-drop { width: 2px; height: 26px; background: #94a3b8; margin: 0 auto; }
+/* El árbol crece hacia abajo: protección -> barra -> protecciones -> ... */
+.circ-tree, .circ-node {
+  display: inline-flex; flex-direction: column; align-items: center; min-width: min-content;
+}
+.circ-drop { width: 2px; height: 24px; background: #94a3b8; }
+.circ-bus-group {
+  display: inline-flex; flex-direction: column; align-items: stretch; min-width: min-content;
+}
 .circ-bus {
-  position: relative; height: 8px; background: #0f3d6b; border-radius: 4px;
-  min-width: 260px; margin: 0 8px;
+  position: relative; height: 9px; background: #0f3d6b; border-radius: 5px;
+  min-width: 210px; margin: 0 6px;
 }
 .circ-bus-label {
-  position: absolute; right: 0; top: -17px; font-size: 10px; font-weight: 700;
-  letter-spacing: .1em; color: #64748b;
+  position: absolute; left: 2px; top: -18px; font-size: 10px; font-weight: 800;
+  letter-spacing: .1em; color: #0f3d6b; white-space: nowrap;
 }
+.circ-bus-actions {
+  position: absolute; right: 0; top: -21px; display: flex; opacity: 0; transition: opacity .12s;
+}
+.circ-bus-group:hover > .circ-bus > .circ-bus-actions { opacity: 1; }
+.circ-bus-actions .btn-ghost { padding: 2px 4px; line-height: 1; }
 .circ-branches {
-  display: flex; gap: 18px; align-items: flex-start;
-  justify-content: flex-start; padding: 0 8px; min-width: min-content;
+  display: flex; gap: 16px; align-items: flex-start;
+  justify-content: center; padding: 0 6px; min-width: min-content;
 }
-.circ-branch { display: flex; flex-direction: column; align-items: center; }
+.circ-branch { display: flex; flex-direction: column; align-items: center; min-width: min-content; }
 .circ-branch-line { width: 2px; height: 22px; background: #94a3b8; }
+.circ-add-bus {
+  border: 1.5px dashed #94a3b8; border-radius: 8px; background: transparent;
+  color: #64748b; cursor: pointer; font-size: 11px; font-weight: 700;
+  font-family: inherit; letter-spacing: .03em; padding: 5px 12px;
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.circ-add-bus:hover { border-color: #1d4ed8; color: #1d4ed8; background: #eff6ff; }
+.circ-add-bus:disabled { opacity: .5; cursor: default; }
+.circ-fase-chip {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 5px;
+  background: #eef2ff; color: #3730a3; font-size: 10px; font-weight: 800; letter-spacing: .04em;
+  vertical-align: middle;
+}
 
 .circ-block {
   position: relative; width: 148px; min-height: 148px; background: #fff;

@@ -123,6 +123,10 @@ export async function saveCircuito(c) {
   const row = {
     asset_id: c.asset_id,
     tipo: c.tipo || 'carga',
+    clase: c.clase || 'proteccion',
+    parent_id: c.parent_id || null,
+    nombre: c.nombre || null,
+    fases: c.fases || null,
     marca: c.marca || null,
     capacidad: c.capacidad || null,
     numero_circuito: c.numero_circuito || null,
