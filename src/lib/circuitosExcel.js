@@ -139,6 +139,33 @@ export function filasCircuitos(circuitos, nombrePorAssetId) {
 // Importación
 // ------------------------------------------------------------------
 
+// ÚNICO lugar donde una fila de la planilla se traduce a campos de la base.
+// Las dos ramas de aplicarFilasEnTablero (protección general y circuito
+// derivado) comparten esta función a propósito: antes cada una tenía su
+// propia copia de la lista y quedaron desincronizadas, con el resultado de
+// que los circuitos hijos perdían estado, fases y capacidad en silencio.
+// Si agregas un campo, agrégalo aquí y queda cubierto en ambos casos.
+//
+// Criterio: lo que trae la planilla manda; si viene vacío se conserva lo que
+// ya estaba en la base. Nunca se borra un dato existente con una celda vacía.
+function camposDeFila(f, ex) {
+  return {
+    fases: f.fases ?? ex?.fases ?? null,
+    numero_fase: f.numero_fase ?? ex?.numero_fase ?? null,
+    estado: f.estado ?? ex?.estado ?? null,
+    marca: f.marca || ex?.marca || null,
+    capacidad_a: f.capacidad_a ?? ex?.capacidad_a ?? null,
+    consumo_a: f.consumo_a ?? ex?.consumo_a ?? null,
+    consumo_kw: f.consumo_kw ?? ex?.consumo_kw ?? null,
+    numero_circuito: f.numero || ex?.numero_circuito || null,
+    tag_circuito: f.tag || ex?.tag_circuito || null,
+    fila: f.fila || ex?.fila || null,
+    rack: f.rack || ex?.rack || null,
+    pdu: f.pdu || ex?.pdu || null,
+    cliente: f.cliente || ex?.cliente || null,
+  }
+}
+
 // Reconstruye el árbol de un tablero a partir de las filas de la planilla.
 // `existentes` son los circuitos que ya tiene el tablero.
 // `guardar` es una función async que persiste un nodo y devuelve el guardado.
@@ -178,19 +205,7 @@ export async function aplicarFilasEnTablero({ assetId, filas, existentes, guarda
         tipo: 'general',
         parent_id: null,
         sort_order: ex?.sort_order ?? 0,
-        fases: f.fases ?? ex?.fases ?? null,
-        numero_fase: f.numero_fase ?? ex?.numero_fase ?? null,
-        estado: f.estado ?? ex?.estado ?? null,
-        marca: f.marca || ex?.marca || null,
-        capacidad_a: f.capacidad_a ?? ex?.capacidad_a ?? null,
-        consumo_a: f.consumo_a ?? ex?.consumo_a ?? null,
-        consumo_kw: f.consumo_kw ?? ex?.consumo_kw ?? null,
-        numero_circuito: f.numero || ex?.numero_circuito || null,
-        tag_circuito: f.tag || ex?.tag_circuito || null,
-        fila: f.fila || ex?.fila || null,
-        rack: f.rack || ex?.rack || null,
-        pdu: f.pdu || ex?.pdu || null,
-        cliente: f.cliente || ex?.cliente || null,
+        ...camposDeFila(f, ex),
       })
       if (ex) { actualizados++; Object.assign(ex, guardado) }
       else { creados++; nodos.push(guardado) }
@@ -260,11 +275,7 @@ export async function aplicarFilasEnTablero({ assetId, filas, existentes, guarda
       tipo: 'carga',
       parent_id: padre.id,
       sort_order: ex?.sort_order ?? hijosDe(padre.id).length,
-      fases: f.fases ?? ex?.fases ?? null,
-      marca: f.marca || ex?.marca || null,
-      capacidad: f.capacidad || ex?.capacidad || null,
-      numero_circuito: f.numero || ex?.numero_circuito || null,
-      tag_circuito: f.tag || ex?.tag_circuito || null,
+      ...camposDeFila(f, ex),
     })
     if (ex) { actualizados++; Object.assign(ex, guardado) }
     else { creados++; nodos.push(guardado) }

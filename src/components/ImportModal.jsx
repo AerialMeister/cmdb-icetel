@@ -117,8 +117,8 @@ async function planCircuitos(XLSX, sheet, sheetName) {
     if (!muestra) {
       muestra = Object.keys(CAMPOS_CIRCUITO).map(k => ({
         campo: CAMPOS_CIRCUITO[k],
-        crudo: k === 'ruta' ? ruta : get(k === 'numero_fase' ? 'numero_fase' : k),
-        leido: k === 'ruta' ? ruta : fila[k === 'numero' ? 'numero' : k],
+        crudo: k === 'tablero' ? tablero : get(k),
+        leido: k === 'tablero' ? tablero : (k === 'ruta' ? ruta : fila[k]),
       }))
     }
 
@@ -360,7 +360,7 @@ export default function ImportModal({ onClose, onDone }) {
                 </div>
               )}
 
-              <div className="table-wrap" style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 12 }}>
+              <div className="table-wrap" style={{ marginBottom: 12 }}>
                 <table>
                   <thead><tr><th>Encabezado en tu Excel</th><th>Campo asignado</th></tr></thead>
                   <tbody>
@@ -375,7 +375,7 @@ export default function ImportModal({ onClose, onDone }) {
               </div>
 
               {p.muestra && (
-                <div className="table-wrap" style={{ maxHeight: 260, overflowY: 'auto' }}>
+                <div className="table-wrap">
                   <table>
                     <thead><tr><th>Campo</th><th>Texto en la celda</th><th>Valor interpretado</th></tr></thead>
                     <tbody>
