@@ -36,6 +36,14 @@ const parseStatus = (v) => {
 
 // Arma el plan de la hoja "Circuitos". La jerarquía viene en la columna
 // Ruta; ver src/lib/circuitosExcel.js para el formato.
+// Nombre legible de cada campo interno, para el diagnóstico de columnas.
+const CAMPOS_CIRCUITO = {
+  tablero: 'Tablero', ruta: 'Ruta', tipo: 'Tipo', numero: 'N° circuito', tag: 'Tag',
+  fases: 'Fases', numero_fase: 'Número Fase', estado: 'Estado',
+  capacidad_a: 'Capacidad (A)', consumo_a: 'Consumo (A)', consumo_kw: 'Consumo kW',
+  marca: 'Marca', fila: 'Fila', rack: 'Rack', pdu: 'PDU', cliente: 'Cliente',
+}
+
 async function planCircuitos(XLSX, sheet, sheetName) {
   const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
   const headers = (aoa[0] || []).map(h => String(h).trim())
@@ -61,11 +69,23 @@ async function planCircuitos(XLSX, sheet, sheetName) {
     else if (n.includes('circuito')) idx.numero = i
   })
 
+  // --- Diagnóstico de columnas: qué encabezado quedó asociado a qué campo ---
+  const campoPorColumna = {}
+  Object.entries(idx).forEach(([campo, i]) => { campoPorColumna[i] = campo })
+  const mapeo = headers.map((h, i) => ({
+    header: h || '(vacío)',
+    campo: campoPorColumna[i] ? CAMPOS_CIRCUITO[campoPorColumna[i]] : null,
+  }))
+  const faltantes = Object.keys(CAMPOS_CIRCUITO)
+    .filter(k => idx[k] === undefined)
+    .map(k => CAMPOS_CIRCUITO[k])
+
   const assets = await getAllAssets()
   const byName = new Map(assets.map(a => [norm(a.name), a]))
 
   const porTablero = new Map()
   const sinTablero = new Set()
+  let muestra = null
 
   for (const r of aoa.slice(1)) {
     const get = (k) => (idx[k] === undefined ? '' : String(r[idx[k]] ?? '').trim())
@@ -94,6 +114,14 @@ async function planCircuitos(XLSX, sheet, sheetName) {
       cliente: get('cliente'),
       _nivel: nivelDeRuta(ruta),
     }
+    if (!muestra) {
+      muestra = Object.keys(CAMPOS_CIRCUITO).map(k => ({
+        campo: CAMPOS_CIRCUITO[k],
+        crudo: k === 'ruta' ? ruta : get(k === 'numero_fase' ? 'numero_fase' : k),
+        leido: k === 'ruta' ? ruta : fila[k === 'numero' ? 'numero' : k],
+      }))
+    }
+
     if (!porTablero.has(asset.id)) {
       porTablero.set(asset.id, { assetId: asset.id, assetName: asset.name, filas: [] })
     }
@@ -108,6 +136,7 @@ async function planCircuitos(XLSX, sheet, sheetName) {
     grupos,
     filasTotal: grupos.reduce((a, g) => a + g.filas.length, 0),
     sinTablero: [...sinTablero],
+    mapeo, faltantes, muestra,
     inserts: [], updates: [], ignored: [],
   }
 }
@@ -231,7 +260,11 @@ export default function ImportModal({ onClose, onDone }) {
       // barras intermedias antes de colgarles las protecciones.
       let circCreados = 0
       let circActualizados = 0
+      const avisos = []
       for (const p of plan.filter(x => x.kind === 'circuitos')) {
+        for (const nombre of p.sinTablero) {
+          avisos.push(`No existe un activo llamado "${nombre}": sus filas se omitieron.`)
+        }
         for (const g of p.grupos) {
           const existentes = await getCircuitos(g.assetId)
           const res = await aplicarFilasEnTablero({
@@ -242,10 +275,11 @@ export default function ImportModal({ onClose, onDone }) {
           })
           circCreados += res.creados
           circActualizados += res.actualizados
+          res.avisos.forEach(a => avisos.push(`[${g.assetName}] ${a}`))
         }
       }
 
-      setResult({ nuevos, actualizados, circCreados, circActualizados })
+      setResult({ nuevos, actualizados, circCreados, circActualizados, avisos })
       onDone?.()
     } catch (e) {
       setErr('Error al importar: ' + e.message)
@@ -269,12 +303,22 @@ export default function ImportModal({ onClose, onDone }) {
       </>) : (<button className="btn btn-primary" onClick={onClose}>Listo</button>)}>
 
       {result != null ? (
-        <div className="banner" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }}>
-          Importación completada: <b>{result.nuevos}</b> activo(s) creado(s) y <b>{result.actualizados}</b> actualizado(s).
-          {(result.circCreados > 0 || result.circActualizados > 0) && (
-            <> En circuitos: <b>{result.circCreados}</b> creado(s) y <b>{result.circActualizados}</b> actualizado(s).</>
+        <>
+          <div className="banner" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }}>
+            Importación completada: <b>{result.nuevos}</b> activo(s) creado(s) y <b>{result.actualizados}</b> actualizado(s).
+            {(result.circCreados > 0 || result.circActualizados > 0) && (
+              <> En circuitos: <b>{result.circCreados}</b> creado(s) y <b>{result.circActualizados}</b> actualizado(s).</>
+            )}
+          </div>
+          {result.avisos?.length > 0 && (
+            <div className="banner banner-warn" style={{ margin: 0 }}>
+              <b>{result.avisos.length} fila(s) no se pudieron cargar:</b>
+              <ul style={{ margin: '8px 0 0', paddingLeft: 20, maxHeight: 220, overflowY: 'auto' }}>
+                {result.avisos.map((a, i) => <li key={i} style={{ marginBottom: 4 }}>{a}</li>)}
+              </ul>
+            </div>
           )}
-        </div>
+        </>
       ) : (
         <>
           <p className="hint" style={{ margin: 0 }}>
@@ -299,6 +343,61 @@ export default function ImportModal({ onClose, onDone }) {
 
           {err && <div className="error-text">{err}</div>}
           {parsing && <div className="spinner" />}
+
+          {plan?.filter(p => p.kind === 'circuitos').map(p => (
+            <div key={'diag-' + p.sheet} style={{
+              border: '1px solid var(--border)', borderRadius: 10, padding: 14,
+              background: 'var(--bg)',
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>
+                Diagnóstico de la hoja Circuitos
+              </div>
+
+              {p.faltantes.length > 0 && (
+                <div className="error-text" style={{ marginBottom: 10 }}>
+                  No encontré estas columnas en la planilla: <b>{p.faltantes.join(', ')}</b>.
+                  Revisa que los encabezados estén en la <b>primera fila</b> de la hoja.
+                </div>
+              )}
+
+              <div className="table-wrap" style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 12 }}>
+                <table>
+                  <thead><tr><th>Encabezado en tu Excel</th><th>Campo asignado</th></tr></thead>
+                  <tbody>
+                    {p.mapeo.map((m, i) => (
+                      <tr key={i} style={{ cursor: 'default' }}>
+                        <td>{m.header}</td>
+                        <td className={m.campo ? '' : 'hint'}>{m.campo || '— ignorada —'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {p.muestra && (
+                <div className="table-wrap" style={{ maxHeight: 260, overflowY: 'auto' }}>
+                  <table>
+                    <thead><tr><th>Campo</th><th>Texto en la celda</th><th>Valor interpretado</th></tr></thead>
+                    <tbody>
+                      {p.muestra.map((m, i) => (
+                        <tr key={i} style={{ cursor: 'default' }}>
+                          <td>{m.campo}</td>
+                          <td>{m.crudo === '' ? <span className="hint">(vacío)</span> : String(m.crudo)}</td>
+                          <td className={m.leido === null || m.leido === '' ? 'hint' : ''}>
+                            {m.leido === null || m.leido === '' ? 'null' : String(m.leido)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="hint" style={{ margin: '8px 0 0' }}>
+                Primera fila de datos. Si la columna del medio viene vacía, el problema está en la planilla;
+                si trae texto pero la de la derecha dice null, el problema es del importador.
+              </p>
+            </div>
+          ))}
 
           {plan && plan.length > 0 && (
             <div className="table-wrap">

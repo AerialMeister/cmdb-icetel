@@ -145,6 +145,7 @@ export function filasCircuitos(circuitos, nombrePorAssetId) {
 // Devuelve { creados, actualizados }.
 export async function aplicarFilasEnTablero({ assetId, filas, existentes, guardar }) {
   const nodos = [...existentes]
+  const avisos = []
   let creados = 0
   let actualizados = 0
 
@@ -153,10 +154,12 @@ export async function aplicarFilasEnTablero({ assetId, filas, existentes, guarda
   const buscarBarra = (parentId, nombre) =>
     hijosDe(parentId).find((n) => n.clase === 'barra' && norm(n.nombre) === norm(nombre))
 
-  const buscarProteccion = (parentId, numero) =>
-    hijosDe(parentId).find(
-      (n) => n.clase === 'proteccion' && norm(n.numero_circuito) === norm(numero)
-    )
+  // Clave de identidad de una protección dentro de su barra: el número de
+  // circuito, o el tag si no hay número.
+  const claveDe = (x) => norm(x.numero_circuito ?? x.numero ?? '') || norm(x.tag_circuito ?? x.tag ?? '')
+
+  const buscarProteccion = (parentId, clave) =>
+    hijosDe(parentId).find((n) => n.clase === 'proteccion' && claveDe(n) === norm(clave))
 
   // Protección general (raíz del árbol)
   const raiz = () => nodos.find((n) => !n.parent_id)
@@ -208,6 +211,14 @@ export async function aplicarFilasEnTablero({ assetId, filas, existentes, guarda
       nodos.push(padre)
     }
 
+    const clave = f.numero || f.tag
+    if (!clave) {
+      avisos.push(
+        `Fila sin N° circuito ni Tag en la ruta "${f.ruta}": no hay cómo identificarla, se omitió.`
+      )
+      continue
+    }
+
     let ok = true
     for (let i = 0; i < segmentos.length; i++) {
       const seg = segmentos[i]
@@ -227,13 +238,21 @@ export async function aplicarFilasEnTablero({ assetId, filas, existentes, guarda
       } else {
         // protección intermedia: debe existir (viene de una fila menos profunda)
         const prot = buscarProteccion(padre.id, seg)
-        if (!prot) { ok = false; break }
+        if (!prot) {
+          avisos.push(
+            `Circuito "${clave}": la ruta "${f.ruta}" menciona la protección "${seg}", ` +
+            `que no existe en la barra anterior. Agrega esa protección como fila propia ` +
+            `(con la ruta hasta esa barra) y vuelve a importar.`
+          )
+          ok = false
+          break
+        }
         padre = prot
       }
     }
-    if (!ok) continue   // ruta incompleta: se informa como aviso aguas arriba
+    if (!ok) continue
 
-    const ex = buscarProteccion(padre.id, f.numero)
+    const ex = buscarProteccion(padre.id, clave)
     const guardado = await guardar({
       id: ex?.id,
       asset_id: assetId,
@@ -251,5 +270,5 @@ export async function aplicarFilasEnTablero({ assetId, filas, existentes, guarda
     else { creados++; nodos.push(guardado) }
   }
 
-  return { creados, actualizados }
+  return { creados, actualizados, avisos }
 }
