@@ -290,6 +290,12 @@ tbody tr:hover .col-pin { background: #f8fafc; }
 }
 .circ-add-bus:hover { border-color: #1d4ed8; color: #1d4ed8; background: #eff6ff; }
 .circ-add-bus:disabled { opacity: .5; cursor: default; }
+.circ-estado-pill {
+  display: inline-block; padding: 1px 9px; border-radius: 999px;
+  font-size: 10px; font-weight: 800; letter-spacing: .06em; margin-top: 2px;
+}
+.circ-estado-pill.is-on  { background: #dcfce7; color: #15803d; }
+.circ-estado-pill.is-off { background: #fee2e2; color: #b91c1c; }
 .circ-fase-chip {
   display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 5px;
   background: #eef2ff; color: #3730a3; font-size: 10px; font-weight: 800; letter-spacing: .04em;

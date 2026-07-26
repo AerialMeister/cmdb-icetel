@@ -3,8 +3,9 @@ import { supabase } from '../supabaseClient.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import {
   getSystems, getAssetTypes, getAssets, getFieldDefs, deleteSystem, deleteAssetType, deleteAsset,
-  getAllAssetTypes, getAllAssets,
+  getAllAssetTypes, getAllAssets, getAllCircuitos,
 } from '../lib/api.js'
+import { filasCircuitos, COLUMNAS_CIRCUITOS } from '../lib/circuitosExcel.js'
 import { systemIcon, IconPlus, IconEdit, IconTrash, IconChip, IconSearch } from './Icons.jsx'
 import SystemForm from './SystemForm.jsx'
 import AssetTypeForm from './AssetTypeForm.jsx'
@@ -366,6 +367,48 @@ async function buildStyledExcel(getSystems, getAllAssetTypes, getAllAssets, getF
           else if (val === 'OFF') cell.font = bodyFont({ bold: true, color: { argb: RED } })
           else cell.font = bodyFont()
         } else cell.font = bodyFont()
+      })
+    })
+  }
+
+  // ---- Hoja de circuitos de tableros ----
+  // La jerarquía va codificada en la columna "Ruta" (ver lib/circuitosExcel.js).
+  let circuitos = []
+  try { circuitos = await getAllCircuitos() } catch { circuitos = [] }
+
+  if (circuitos.length) {
+    const nombrePorAssetId = new Map(allAssets.map(a => [a.id, a.name]))
+    const filas = filasCircuitos(circuitos, nombrePorAssetId)
+
+    const ws = wb.addWorksheet('Circuitos', { views: [{ state: 'frozen', ySplit: 1 }] })
+    ws.columns = COLUMNAS_CIRCUITOS.map((c, i) => ({ key: String(i), width: c.width }))
+
+    const hdr = ws.getRow(1)
+    hdr.height = 22
+    COLUMNAS_CIRCUITOS.forEach((col, i) => {
+      const cell = hdr.getCell(i + 1)
+      cell.value = col.label
+      cell.font = hdrFont()
+      cell.fill = fill(NAVY)
+      cell.border = borders
+      cell.alignment = { horizontal: 'center', vertical: 'middle' }
+    })
+
+    filas.forEach((f, rowIdx) => {
+      const row = ws.getRow(rowIdx + 2)
+      row.height = 18
+      const bg = fill(rowIdx % 2 === 0 ? WHITE : ALT)
+      COLUMNAS_CIRCUITOS.forEach((col, ci) => {
+        const cell = row.getCell(ci + 1)
+        cell.value = f[col.key] ?? ''
+        cell.fill = bg
+        cell.border = borders
+        cell.alignment = { vertical: 'middle', horizontal: col.num ? 'right' : 'left' }
+        cell.font = bodyFont(col.key === 'tablero' || col.key === 'numero' ? { bold: true } : {})
+        if (col.key === 'estado') {
+          if (f.estado === 'ON') cell.font = bodyFont({ bold: true, color: { argb: GREEN } })
+          else if (f.estado === 'OFF') cell.font = bodyFont({ bold: true, color: { argb: RED } })
+        }
       })
     })
   }

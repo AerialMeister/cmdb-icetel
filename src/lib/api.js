@@ -119,6 +119,22 @@ export async function getCircuitos(assetId) {
   return data
 }
 
+// Campos numéricos de circuitos: '' y basura -> null (no 0).
+function numOrNull(v) {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(String(v).replace(',', '.'))
+  return Number.isFinite(n) ? n : null
+}
+
+// Todos los circuitos de la CMDB (para exportar a Excel).
+export async function getAllCircuitos() {
+  const { data, error } = await supabase
+    .from('cmdb_circuitos').select('*')
+    .order('sort_order').order('created_at')
+  if (error) throw error
+  return data
+}
+
 export async function saveCircuito(c) {
   const row = {
     asset_id: c.asset_id,
@@ -127,10 +143,18 @@ export async function saveCircuito(c) {
     parent_id: c.parent_id || null,
     nombre: c.nombre || null,
     fases: c.fases || null,
+    numero_fase: c.numero_fase || null,
+    estado: c.estado || null,
     marca: c.marca || null,
-    capacidad: c.capacidad || null,
+    capacidad_a: numOrNull(c.capacidad_a),
+    consumo_a: numOrNull(c.consumo_a),
+    consumo_kw: numOrNull(c.consumo_kw),
     numero_circuito: c.numero_circuito || null,
     tag_circuito: c.tag_circuito || null,
+    fila: c.fila || null,
+    rack: c.rack || null,
+    pdu: c.pdu || null,
+    cliente: c.cliente || null,
     sort_order: c.sort_order ?? 0,
   }
   if (c.id) {
@@ -216,7 +240,7 @@ export function slugify(s) {
 export async function getAllAssets() {
   const { data, error } = await supabase
     .from('cmdb_assets')
-    .select('id, asset_type_id, data')
+    .select('id, name, asset_type_id, data')
   if (error) throw error
   return data
 }

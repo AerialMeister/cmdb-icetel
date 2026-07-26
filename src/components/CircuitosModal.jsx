@@ -8,15 +8,15 @@ import { getCircuitos, saveCircuito, deleteCircuito, reorderCircuitos } from '..
    La cantidad de polos sigue al campo "fases": 1 polo si es monofásica,
    3 polos unidos por el enlace mecánico punteado si es trifásica.
 ------------------------------------------------------------------- */
-function Polo({ cx, color }) {
+function Polo({ cx, color, cerrado }) {
   return (
     <g transform={`translate(${cx} 0)`}>
       {/* conductor superior */}
       <path d="M0 2 V15" />
       {/* contacto fijo: la cruz identifica al interruptor automático */}
       <path d="M-4.5 10.5 L4.5 19.5 M4.5 10.5 L-4.5 19.5" strokeWidth={1.5} />
-      {/* contacto móvil (abierto) */}
-      <path d="M0 39 L10 17" />
+      {/* contacto móvil: recto si está cerrado, inclinado si está abierto */}
+      {cerrado ? <path d="M0 39 V15" /> : <path d="M0 39 L10 17" />}
       <circle cx="0" cy="15" r="2.3" fill={color} stroke="none" />
       <circle cx="0" cy="39" r="2.3" fill={color} stroke="none" />
       {/* conductor inferior */}
@@ -25,7 +25,14 @@ function Polo({ cx, color }) {
   )
 }
 
-function BreakerSymbol({ fases, height = 50, color = '#1d4ed8' }) {
+const COLOR_ON = '#16a34a'
+const COLOR_OFF = '#dc2626'
+
+// El color y la posición del contacto siguen al estado del disyuntor.
+// Sin estado definido se dibuja abierto en el azul neutro del diagrama.
+function BreakerSymbol({ fases, estado, height = 50, color = '#1d4ed8' }) {
+  const cerrado = estado === 'on'
+  const c = estado === 'on' ? COLOR_ON : estado === 'off' ? COLOR_OFF : color
   const tri = fases === 'trifasica'
   const w = tri ? 76 : 34
   return (
@@ -34,29 +41,35 @@ function BreakerSymbol({ fases, height = 50, color = '#1d4ed8' }) {
       width={(height * w) / 52}
       viewBox={`0 0 ${w} 52`}
       fill="none"
-      stroke={color}
+      stroke={c}
       strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
     >
       {tri ? (
         <>
-          <Polo cx={13} color={color} />
-          <Polo cx={38} color={color} />
-          <Polo cx={63} color={color} />
+          <Polo cx={13} color={c} cerrado={cerrado} />
+          <Polo cx={38} color={c} cerrado={cerrado} />
+          <Polo cx={63} color={c} cerrado={cerrado} />
           {/* enlace mecánico entre polos */}
           <path d="M18 28 H68" strokeWidth={1.4} strokeDasharray="3 3" />
         </>
       ) : (
-        <Polo cx={17} color={color} />
+        <Polo cx={17} color={c} cerrado={cerrado} />
       )}
     </svg>
   )
 }
 
-const EMPTY = { marca: '', capacidad: '', numero_circuito: '', tag_circuito: '' }
+const EMPTY = {
+  marca: '', capacidad_a: '', consumo_kw: '', numero_circuito: '', tag_circuito: '',
+  fila: '', rack: '', pdu: '', cliente: '',
+}
 
 const etiquetaFases = (f) => (f === 'trifasica' ? '3F' : f === 'monofasica' ? '1F' : null)
+
+// La capacidad se guarda solo como número; la unidad la pone la interfaz.
+const capacidadTexto = (v) => (v === null || v === undefined || v === '' ? '—' : `${v} A`)
 
 /* ================================================================== */
 export default function CircuitosModal({ asset, canEdit, onClose }) {
@@ -212,7 +225,9 @@ export default function CircuitosModal({ asset, canEdit, onClose }) {
                 <thead>
                   <tr>
                     <th>Barra</th><th>N° circuito</th><th>Tag</th>
-                    <th>Fases</th><th>Marca</th><th>Capacidad</th>
+                    <th>Fases</th><th>N° fase</th><th>Estado</th>
+                    <th>Capacidad</th><th>Consumo (A)</th><th>Consumo kW</th>
+                    <th>Marca</th><th>Fila</th><th>Rack</th><th>PDU</th><th>Cliente</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -222,8 +237,22 @@ export default function CircuitosModal({ asset, canEdit, onClose }) {
                       <td style={{ fontWeight: 600 }}>{c.numero_circuito || '—'}</td>
                       <td>{c.tag_circuito || '—'}</td>
                       <td>{c.fases === 'trifasica' ? 'Trifásica' : c.fases === 'monofasica' ? 'Monofásica' : '—'}</td>
+                      <td style={{ fontWeight: 600 }}>{c.numero_fase || '—'}</td>
+                      <td>
+                        {c.estado
+                          ? <span className={'circ-estado-pill ' + (c.estado === 'on' ? 'is-on' : 'is-off')}>
+                              {c.estado === 'on' ? 'ON' : 'OFF'}
+                            </span>
+                          : '—'}
+                      </td>
+                      <td>{capacidadTexto(c.capacidad_a)}</td>
+                      <td>{capacidadTexto(c.consumo_a)}</td>
+                      <td>{c.consumo_kw ?? '—'}</td>
                       <td>{c.marca || '—'}</td>
-                      <td>{c.capacidad || '—'}</td>
+                      <td>{c.fila || '—'}</td>
+                      <td>{c.rack || '—'}</td>
+                      <td>{c.pdu || '—'}</td>
+                      <td>{c.cliente || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -327,11 +356,21 @@ function BlockCard({ c, ctx, onLeft, onRight }) {
         </div>
       )}
       <div className="circ-block-tag">{esGeneral ? 'GENERAL' : c.numero_circuito || '—'}</div>
-      <BreakerSymbol fases={c.fases} height={46} color={esGeneral ? '#0f3d6b' : '#1d4ed8'} />
+      <BreakerSymbol fases={c.fases} estado={c.estado} height={46}
+        color={esGeneral ? '#0f3d6b' : '#1d4ed8'} />
       <div className="circ-block-cap">
-        {c.capacidad || '—'}
+        {capacidadTexto(c.capacidad_a)}
         {fases && <span className="circ-fase-chip">{fases}</span>}
+        {c.numero_fase && <span className="circ-fase-chip">{c.numero_fase}</span>}
       </div>
+      {c.estado && (
+        <span className={'circ-estado-pill ' + (c.estado === 'on' ? 'is-on' : 'is-off')}>
+          {c.estado === 'on' ? 'ON' : 'OFF'}
+        </span>
+      )}
+      {c.consumo_kw !== null && c.consumo_kw !== undefined && c.consumo_kw !== '' && (
+        <div className="circ-block-marca">{c.consumo_kw} kW</div>
+      )}
       <div className="circ-block-marca">{c.marca || 'sin marca'}</div>
       {(c.tag_circuito || !esGeneral) && (
         <div className="circ-block-desc" title={c.tag_circuito || ''}>{c.tag_circuito || 'sin tag'}</div>
@@ -353,12 +392,31 @@ function CircuitoForm({ nodo, busy, onCancel, onSave }) {
     sort_order: nodo.sort_order ?? 0,
     nombre: nodo.nombre || '',
     fases: nodo.fases || 'monofasica',
+    numero_fase: nodo.numero_fase || (nodo.fases === 'trifasica' ? 'RST' : ''),
+    estado: nodo.estado || 'on',
     marca: nodo.marca || '',
-    capacidad: nodo.capacidad || '',
+    capacidad_a: nodo.capacidad_a ?? '',
+    consumo_a: nodo.consumo_a ?? '',
+    consumo_kw: nodo.consumo_kw ?? '',
     numero_circuito: nodo.numero_circuito || '',
     tag_circuito: nodo.tag_circuito || '',
+    fila: nodo.fila || '',
+    rack: nodo.rack || '',
+    pdu: nodo.pdu || '',
+    cliente: nodo.cliente || '',
   })
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }))
+
+  // Trifásica solo admite RST; al pasar a monofásica hay que elegir la fase.
+  const setFases = (e) => {
+    const v = e.target.value
+    setF((p) => ({
+      ...p,
+      fases: v,
+      numero_fase: v === 'trifasica' ? 'RST' : p.numero_fase === 'RST' ? '' : p.numero_fase,
+    }))
+  }
+  const fasesDisponibles = f.fases === 'trifasica' ? ['RST'] : ['R', 'S', 'T']
 
   const titulo =
     (nodo._new ? 'Nueva ' : 'Editar ') +
@@ -384,19 +442,49 @@ function CircuitoForm({ nodo, busy, onCancel, onSave }) {
         <>
           <div className="field">
             <label>Fases</label>
-            <select value={f.fases} onChange={set('fases')}>
+            <select value={f.fases} onChange={setFases}>
               <option value="monofasica">Monofásica (1 polo)</option>
               <option value="trifasica">Trifásica (3 polos)</option>
             </select>
             <span className="hint">Define cuántos polos muestra el símbolo en el diagrama.</span>
           </div>
           <div className="field">
-            <label>Marca de la protección</label>
-            <input type="text" value={f.marca} onChange={set('marca')} placeholder="Schneider, ABB, Siemens…" />
+            <label>Número Fase</label>
+            <select value={f.numero_fase} onChange={set('numero_fase')}>
+              <option value="">—</option>
+              {fasesDisponibles.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <span className="hint">
+              {f.fases === 'trifasica'
+                ? 'Un circuito trifásico ocupa las tres fases: RST.'
+                : 'Fase a la que está conectado el circuito monofásico.'}
+            </span>
           </div>
           <div className="field">
-            <label>Capacidad</label>
-            <input type="text" value={f.capacidad} onChange={set('capacidad')} placeholder="63 A, 3x100 A…" />
+            <label>Estado del disyuntor</label>
+            <select value={f.estado} onChange={set('estado')}>
+              <option value="on">ON — cerrado</option>
+              <option value="off">OFF — abierto</option>
+            </select>
+            <span className="hint">En el diagrama se dibuja cerrado y verde si está ON, abierto y rojo si está OFF.</span>
+          </div>
+          <div className="field">
+            <label>Capacidad (A)</label>
+            <input type="number" step="any" min="0" value={f.capacidad_a} onChange={set('capacidad_a')} placeholder="63" />
+            <span className="hint">Solo el número. La unidad en amperes la agrega la aplicación.</span>
+          </div>
+          <div className="field">
+            <label>Consumo (A) <span className="hint">(opcional)</span></label>
+            <input type="number" step="any" min="0" value={f.consumo_a} onChange={set('consumo_a')} placeholder="—" />
+          </div>
+          <div className="field">
+            <label>Consumo (kW) <span className="hint">(opcional)</span></label>
+            <input type="number" step="any" min="0" value={f.consumo_kw} onChange={set('consumo_kw')} placeholder="—" />
+            <span className="hint">Se llenará automáticamente cuando se conecte la base de mediciones.</span>
+          </div>
+          <div className="field">
+            <label>Marca de la protección</label>
+            <input type="text" value={f.marca} onChange={set('marca')} placeholder="Schneider, ABB, Siemens…" />
           </div>
           <div className="field">
             <label>Número del circuito</label>
@@ -406,6 +494,26 @@ function CircuitoForm({ nodo, busy, onCancel, onSave }) {
           <div className="field">
             <label>Tag de circuito</label>
             <input type="text" value={f.tag_circuito} onChange={set('tag_circuito')} placeholder="Carga alimentada / tag" />
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0 12px' }} />
+          <div className="form-grid">
+            <div className="field">
+              <label>Fila <span className="hint">(opcional)</span></label>
+              <input type="text" value={f.fila} onChange={set('fila')} />
+            </div>
+            <div className="field">
+              <label>Rack <span className="hint">(opcional)</span></label>
+              <input type="text" value={f.rack} onChange={set('rack')} />
+            </div>
+            <div className="field">
+              <label>PDU <span className="hint">(opcional)</span></label>
+              <input type="text" value={f.pdu} onChange={set('pdu')} />
+            </div>
+            <div className="field">
+              <label>Cliente <span className="hint">(opcional)</span></label>
+              <input type="text" value={f.cliente} onChange={set('cliente')} />
+            </div>
           </div>
         </>
       )}

@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import Modal from './Modal.jsx'
-import { getAllAssetTypes, getFieldDefs, getAssets, insertAssetsBulk, upsertAssetsBulk } from '../lib/api.js'
+import {
+  getAllAssetTypes, getFieldDefs, getAssets, insertAssetsBulk, upsertAssetsBulk,
+  getAllAssets, getCircuitos, saveCircuito,
+} from '../lib/api.js'
+import {
+  parseFases, parseNumeroFase, parseEstado, parseNumero, nivelDeRuta, aplicarFilasEnTablero,
+} from '../lib/circuitosExcel.js'
 
 // SheetJS se carga desde CDN bajo demanda (sin dependencia npm).
 let xlsxPromise = null
@@ -28,6 +34,84 @@ const parseStatus = (v) => {
   return null
 }
 
+// Arma el plan de la hoja "Circuitos". La jerarquía viene en la columna
+// Ruta; ver src/lib/circuitosExcel.js para el formato.
+async function planCircuitos(XLSX, sheet, sheetName) {
+  const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+  const headers = (aoa[0] || []).map(h => String(h).trim())
+
+  const idx = {}
+  headers.forEach((h, i) => {
+    const n = norm(h)
+    if (n === 'tablero') idx.tablero = i
+    else if (n === 'ruta') idx.ruta = i
+    else if (n === 'tipo') idx.tipo = i
+    else if (n === 'tag') idx.tag = i
+    else if (n === 'marca') idx.marca = i
+    else if (n === 'fila') idx.fila = i
+    else if (n === 'rack') idx.rack = i
+    else if (n === 'pdu') idx.pdu = i
+    else if (n === 'cliente') idx.cliente = i
+    else if (n === 'estado') idx.estado = i
+    else if (n.includes('numero fase') || n === 'n fase') idx.numero_fase = i
+    else if (n.startsWith('fase')) idx.fases = i
+    else if (n.includes('capacidad')) idx.capacidad_a = i
+    else if (n.includes('consumo') && n.includes('kw')) idx.consumo_kw = i
+    else if (n.includes('consumo')) idx.consumo_a = i
+    else if (n.includes('circuito')) idx.numero = i
+  })
+
+  const assets = await getAllAssets()
+  const byName = new Map(assets.map(a => [norm(a.name), a]))
+
+  const porTablero = new Map()
+  const sinTablero = new Set()
+
+  for (const r of aoa.slice(1)) {
+    const get = (k) => (idx[k] === undefined ? '' : String(r[idx[k]] ?? '').trim())
+    const tablero = get('tablero')
+    if (!tablero) continue
+
+    const asset = byName.get(norm(tablero))
+    if (!asset) { sinTablero.add(tablero); continue }
+
+    const ruta = get('ruta')
+    const fila = {
+      ruta,
+      tipo: get('tipo'),
+      numero: get('numero'),
+      tag: get('tag'),
+      fases: parseFases(get('fases')),
+      numero_fase: parseNumeroFase(get('numero_fase')),
+      estado: parseEstado(get('estado')),
+      capacidad_a: parseNumero(get('capacidad_a')),
+      consumo_a: parseNumero(get('consumo_a')),
+      consumo_kw: parseNumero(get('consumo_kw')),
+      marca: get('marca'),
+      fila: get('fila'),
+      rack: get('rack'),
+      pdu: get('pdu'),
+      cliente: get('cliente'),
+      _nivel: nivelDeRuta(ruta),
+    }
+    if (!porTablero.has(asset.id)) {
+      porTablero.set(asset.id, { assetId: asset.id, assetName: asset.name, filas: [] })
+    }
+    porTablero.get(asset.id).filas.push(fila)
+  }
+
+  const grupos = [...porTablero.values()]
+  return {
+    kind: 'circuitos',
+    sheet: sheetName,
+    typeName: 'Circuitos de tableros',
+    grupos,
+    filasTotal: grupos.reduce((a, g) => a + g.filas.length, 0),
+    sinTablero: [...sinTablero],
+    inserts: [], updates: [], ignored: [],
+  }
+}
+
 export default function ImportModal({ onClose, onDone }) {
   const [plan, setPlan] = useState(null)
   const [fileName, setFileName] = useState('')
@@ -50,6 +134,12 @@ export default function ImportModal({ onClose, onDone }) {
 
       const out = []
       for (const sheetName of wb.SheetNames) {
+        // ---- Hoja especial de circuitos de tableros ----
+        if (norm(sheetName) === 'circuitos') {
+          out.push(await planCircuitos(XLSX, wb.Sheets[sheetName], sheetName))
+          continue
+        }
+
         const t = typeByName[norm(sheetName)]
         if (!t) continue   // hojas como "Instrucciones" se ignoran
         const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' })
@@ -134,9 +224,28 @@ export default function ImportModal({ onClose, onDone }) {
     try {
       const allInserts = plan.flatMap(p => p.inserts)
       const allUpdates = plan.flatMap(p => p.updates)
-      const nuevos = await insertAssetsBulk(allInserts)
+      const nuevos = allInserts.length ? await insertAssetsBulk(allInserts) : 0
       const actualizados = allUpdates.length ? await upsertAssetsBulk(allUpdates) : 0
-      setResult({ nuevos, actualizados })
+
+      // Circuitos: se procesan tablero por tablero porque hay que crear las
+      // barras intermedias antes de colgarles las protecciones.
+      let circCreados = 0
+      let circActualizados = 0
+      for (const p of plan.filter(x => x.kind === 'circuitos')) {
+        for (const g of p.grupos) {
+          const existentes = await getCircuitos(g.assetId)
+          const res = await aplicarFilasEnTablero({
+            assetId: g.assetId,
+            filas: g.filas,
+            existentes,
+            guardar: saveCircuito,
+          })
+          circCreados += res.creados
+          circActualizados += res.actualizados
+        }
+      }
+
+      setResult({ nuevos, actualizados, circCreados, circActualizados })
       onDone?.()
     } catch (e) {
       setErr('Error al importar: ' + e.message)
@@ -147,26 +256,37 @@ export default function ImportModal({ onClose, onDone }) {
 
   const totalNew = plan ? plan.reduce((a, p) => a + p.inserts.length, 0) : 0
   const totalUpd = plan ? plan.reduce((a, p) => a + p.updates.length, 0) : 0
-  const total = totalNew + totalUpd
+  const totalCirc = plan ? plan.reduce((a, p) => a + (p.filasTotal || 0), 0) : 0
+  const total = totalNew + totalUpd + totalCirc
 
   return (
     <Modal size="lg" title="Importar activos desde Excel" onClose={onClose}
       footer={result == null ? (<>
         <button className="btn" onClick={onClose}>Cancelar</button>
         <button className="btn btn-primary" onClick={doImport} disabled={!plan || total === 0 || importing}>
-          {importing ? 'Importando…' : `Procesar ${total} activo(s)`}
+          {importing ? 'Importando…' : `Procesar ${total} fila(s)`}
         </button>
       </>) : (<button className="btn btn-primary" onClick={onClose}>Listo</button>)}>
 
       {result != null ? (
         <div className="banner" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }}>
           Importación completada: <b>{result.nuevos}</b> activo(s) creado(s) y <b>{result.actualizados}</b> actualizado(s).
+          {(result.circCreados > 0 || result.circActualizados > 0) && (
+            <> En circuitos: <b>{result.circCreados}</b> creado(s) y <b>{result.circActualizados}</b> actualizado(s).</>
+          )}
         </div>
       ) : (
         <>
           <p className="hint" style={{ margin: 0 }}>
             Usa la plantilla <b>Plantilla_Carga_CMDB_Icetel.xlsx</b>. Cada hoja se asocia a un tipo por su nombre;
             la columna <b>Nombre</b> es obligatoria. Los activos con un <b>nombre ya existente se actualizan</b> (no se duplican).
+          </p>
+          <p className="hint" style={{ margin: 0 }}>
+            La hoja <b>Circuitos</b> carga el detalle de los tableros. La columna <b>Ruta</b> lleva el camino
+            de barras separado por <b>&gt;</b> (vacía = protección general; <i>BARRA PRINCIPAL</i>;
+            <i> BARRA PRINCIPAL &gt; C3 &gt; BARRA TDA-2</i>). Las barras que falten se crean solas.
+            <b> Capacidad (A)</b> y <b>Consumo kW</b> van solo como número, sin unidad.
+            Nada se borra: solo se agrega y se actualiza.
           </p>
 
           <div className="field">
@@ -189,9 +309,15 @@ export default function ImportModal({ onClose, onDone }) {
                     <tr key={p.sheet} style={{ cursor: 'default' }}>
                       <td style={{ fontWeight: 600 }}>{p.sheet}</td>
                       <td>{p.typeName}</td>
-                      <td>{p.inserts.length}</td>
-                      <td>{p.updates.length}</td>
-                      <td className="hint">{p.ignored.length ? p.ignored.join(', ') : '—'}</td>
+                      <td>{p.kind === 'circuitos' ? p.filasTotal : p.inserts.length}</td>
+                      <td>{p.kind === 'circuitos' ? '—' : p.updates.length}</td>
+                      <td className="hint">
+                        {p.kind === 'circuitos'
+                          ? (p.sinTablero.length
+                              ? 'Tablero no encontrado: ' + p.sinTablero.join(', ')
+                              : '—')
+                          : (p.ignored.length ? p.ignored.join(', ') : '—')}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
