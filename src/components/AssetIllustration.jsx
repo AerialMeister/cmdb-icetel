@@ -1,16 +1,35 @@
 // ============================================================
-// Ilustraciones de equipos — estilo duotono plano
+// Ilustraciones de equipos — "tal como se ve instalado"
 //
-// Reglas del sistema de diseño (respetarlas al agregar equipos nuevos):
-//   * viewBox único 0 0 240 200 para TODAS. Así todas ocupan el mismo
-//     espacio en las tarjetas y la grilla se ve pareja.
-//   * Paleta cerrada C: neutros para el chasis, azul de marca para el
-//     frente, azul acento para el detalle "vivo", verde/ámbar/rojo solo
-//     para indicadores de estado.
-//   * Contorno C.line de 2px, esquinas redondeadas, relleno plano.
-//     Sin gradientes ni sombras duras.
-//   * Sombra de apoyo en el suelo vía <Base/>, nunca dibujada a mano.
-//   * Sin rótulos de texto: la tarjeta ya dice el nombre del tipo.
+// PRINCIPIO RECTOR: cada equipo se reconoce por su SILUETA, no por el
+// detalle interior. Antes de dibujar nada, la pregunta es "¿en qué se
+// diferencia el contorno de este equipo del de todos los demás?".
+// Si dos equipos comparten contorno, uno de los dos está mal planteado.
+//
+// Siluetas asignadas (no repetir):
+//   ups .................. torre vertical angosta con display
+//   genset ............... contenedor horizontal + chimenea de escape
+//   planta_cc ............ gabinete con dos zonas visiblemente distintas
+//   tablero .............. gabinete ancho con la puerta abierta al costado
+//   clima (CRAC) ......... vertical sobre piso técnico, descarga hacia abajo
+//   clima (split) ........ dos cuerpos separados unidos por cañería
+//   bomba ................ voluta circular + motor cilíndrico + descarga
+//   banco_bateria ........ rack ABIERTO de bandejas, sin cerramiento
+//   celda_mt ............. gabinete alto con mímico unifilar en la puerta
+//   transformador_mt ..... cuba con conservador arriba y radiadores al lado
+//   torre_enfriamiento ... trapecio con chimenea acampanada y ventilador
+//   chiller .............. horizontal largo con ventiladores EN EL TECHO
+//   ahc .................. horizontal con ductos rectangulares a los lados
+//   acu .................. cubo con UNA reja circular grande al frente
+//   estanque ............. cilindro HORIZONTAL sobre silletas
+//   alcantarilla ......... corte de terreno con tapa a nivel de suelo
+//   ascensor ............. puertas de hall con indicador de piso
+//   instalacion_fisica ... edificio
+//   monitoreo ............ videowall de 4 pantallas
+//   extintor ............. extintor colgado en muro con señalética
+//
+// Reglas de forma: viewBox 0 0 240 200, contorno C.line 2px, relleno
+// plano, esquinas redondeadas, sombra vía <Base/>, sin rótulos de texto.
 // ============================================================
 
 const C = {
@@ -30,7 +49,6 @@ const C = {
   white: '#ffffff',
 }
 
-// Lienzo común: sombra de apoyo + viewBox unificado.
 function Base({ children, shadow = 86 }) {
   return (
     <svg viewBox="0 0 240 200" xmlns="http://www.w3.org/2000/svg">
@@ -40,572 +58,662 @@ function Base({ children, shadow = 86 }) {
   )
 }
 
-// Flecha de flujo (aire o agua) reutilizable.
+/* --- Vocabulario compartido: rejillas, aletas, ventiladores, flujo --- */
+
+function Louvers({ x, y, w, h, n = 6 }) {
+  const gap = h / n
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} rx="4" fill={C.white} stroke={C.steelDark} strokeWidth="1.6" />
+      {[...Array(n)].map((_, i) => (
+        <line key={i} x1={x + 5} y1={y + gap * (i + 0.5)} x2={x + w - 5} y2={y + gap * (i + 0.5)}
+          stroke={C.steelDark} strokeWidth="2.6" strokeLinecap="round" />
+      ))}
+    </g>
+  )
+}
+
+function Fins({ x, y, w, h, n = 11 }) {
+  const gap = w / (n - 1)
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} rx="4" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
+      {[...Array(n)].map((_, i) => (
+        <line key={i} x1={x + i * gap} y1={y + 5} x2={x + i * gap} y2={y + h - 5}
+          stroke={C.steelDark} strokeWidth="2" />
+      ))}
+    </g>
+  )
+}
+
+function Fan({ cx, cy, r }) {
+  const b = r * 0.86
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={r} fill={C.white} stroke={C.line} strokeWidth="2" />
+      <circle cx={cx} cy={cy} r={r * 0.8} fill="none" stroke={C.steel} strokeWidth="1.5" />
+      {[0, 120, 240].map((a) => (
+        <path key={a} transform={`rotate(${a} ${cx} ${cy})`} fill={C.steelDark}
+          d={`M${cx} ${cy} L${cx - b * 0.24} ${cy - b} a ${b} ${b} 0 0 1 ${b * 0.7} ${b * 0.22} Z`} />
+      ))}
+      <circle cx={cx} cy={cy} r={Math.max(3, r * 0.17)} fill={C.line} />
+    </g>
+  )
+}
+
 function Flow({ d, color = C.accent }) {
   return <path d={d} fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
 }
 
-/* ---------------------------------------------------------- UPS modular */
+/* ============ UPS — torre vertical angosta ============ */
 function UpsModular() {
   return (
-    <Base shadow={58}>
-      <rect x="74" y="18" width="92" height="162" rx="11" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <rect x="84" y="28" width="72" height="28" rx="6" fill={C.brand} />
-      <rect x="91" y="36" width="32" height="12" rx="3" fill={C.accentSoft} />
-      <circle cx="146" cy="42" r="4" fill={C.on} />
-      {[0, 1, 2, 3].map((i) => (
-        <g key={i}>
-          <rect x="84" y={66 + i * 27} width="72" height="21" rx="5" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-          <rect x="91" y={72 + i * 27} width="28" height="4" rx="2" fill={C.steel} />
-          <rect x="91" y={79 + i * 27} width="16" height="3" rx="1.5" fill={C.steel} />
-          <circle cx="146" cy={76 + i * 27} r="3.4" fill={C.on} />
-        </g>
-      ))}
-      <rect x="86" y="174" width="68" height="6" rx="3" fill={C.line} />
-    </Base>
-  )
-}
-
-/* ------------------------------------------------- Grupo electrógeno */
-function Genset() {
-  return (
-    <Base>
-      {/* patín */}
-      <rect x="26" y="150" width="188" height="16" rx="5" fill={C.line} />
-      <rect x="40" y="166" width="26" height="10" rx="3" fill={C.ink} />
-      <rect x="174" y="166" width="26" height="10" rx="3" fill={C.ink} />
-      {/* radiador */}
-      <rect x="32" y="76" width="42" height="74" rx="7" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      {[0, 1, 2, 3, 4].map((i) => (
-        <line key={i} x1="39" y1={88 + i * 14} x2="67" y2={88 + i * 14} stroke={C.steelDark} strokeWidth="2.4" />
-      ))}
-      {/* motor */}
-      <rect x="76" y="66" width="76" height="84" rx="9" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <rect x="86" y="78" width="56" height="12" rx="4" fill={C.line} />
-      {[0, 1, 2, 3].map((i) => (
-        <rect key={i} x={88 + i * 14} y="96" width="10" height="26" rx="3" fill={C.steel} />
-      ))}
-      <rect x="86" y="130" width="56" height="8" rx="3" fill={C.bodyAlt} />
-      {/* alternador */}
-      <rect x="152" y="82" width="62" height="68" rx="30" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <circle cx="183" cy="116" r="15" fill={C.steel} stroke={C.line} strokeWidth="2" />
-      <circle cx="183" cy="116" r="5" fill={C.line} />
-      {/* escape */}
-      <rect x="98" y="26" width="15" height="42" rx="5" fill={C.steelDark} />
-      <ellipse cx="105" cy="25" rx="11" ry="6" fill={C.steel} />
-      <circle cx="203" cy="94" r="4" fill={C.on} />
-    </Base>
-  )
-}
-
-/* ------------------------------------------------------------ Planta CC */
-function PlantaCC() {
-  return (
-    <Base>
-      {/* rectificadores */}
-      <rect x="26" y="26" width="88" height="150" rx="10" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <rect x="36" y="36" width="68" height="18" rx="5" fill={C.brand} />
+    <Base shadow={44}>
+      <rect x="84" y="14" width="72" height="166" rx="7" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <rect x="92" y="22" width="56" height="150" rx="4" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
+      {/* display */}
+      <rect x="99" y="30" width="42" height="28" rx="4" fill={C.ink} />
+      <rect x="104" y="36" width="24" height="14" rx="2" fill={C.accentSoft} />
+      <circle cx="135" cy="43" r="3.4" fill={C.on} />
+      {/* botonera */}
+      {[0, 1, 2].map((i) => <circle key={i} cx={107 + i * 13} cy="67" r="3.6" fill={C.steel} />)}
+      {/* módulos de potencia */}
       {[0, 1, 2].map((i) => (
         <g key={i}>
-          <rect x="36" y={64 + i * 34} width="68" height="26" rx="5" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-          <rect x="43" y={72 + i * 34} width="30" height="5" rx="2.5" fill={C.accent} />
-          <circle cx="95" cy={77 + i * 34} r="3.4" fill={C.on} />
+          <rect x="99" y={80 + i * 24} width="42" height="18" rx="3" fill={C.bodyAlt} stroke={C.steel} strokeWidth="1.4" />
+          <rect x="104" y={86 + i * 24} width="16" height="4" rx="2" fill={C.steelDark} />
+          <circle cx="135" cy={89 + i * 24} r="3" fill={C.on} />
         </g>
       ))}
-      <rect x="36" y="166" width="68" height="4" rx="2" fill={C.steel} />
-      {/* banco de baterías */}
-      <rect x="126" y="26" width="88" height="150" rx="10" fill={C.body} stroke={C.line} strokeWidth="2" />
-      {[0, 1, 2, 3].map((r) =>
-        [0, 1].map((c) => (
+      {/* rejilla de ventilación */}
+      <Louvers x={99} y={152} w={42} h={16} n={4} />
+      <rect x="88" y="176" width="64" height="6" rx="3" fill={C.line} />
+    </Base>
+  )
+}
+
+/* ============ Grupo electrógeno — contenedor + chimenea ============ */
+function Genset() {
+  return (
+    <Base shadow={92}>
+      {/* chimenea de escape */}
+      <rect x="164" y="14" width="18" height="40" rx="4" fill={C.steelDark} />
+      <rect x="158" y="10" width="30" height="9" rx="4.5" fill={C.line} />
+      {/* techo */}
+      <rect x="24" y="46" width="192" height="14" rx="6" fill={C.brand} />
+      {/* cerramiento insonorizado */}
+      <rect x="30" y="58" width="180" height="100" rx="7" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <Louvers x={40} y={70} w={46} h={76} />
+      {/* puerta con tablero de control */}
+      <rect x="96" y="70" width="66" height="76" rx="5" fill={C.bodyAlt} stroke={C.line} strokeWidth="1.8" />
+      <rect x="104" y="78" width="50" height="32" rx="4" fill={C.brand} />
+      <rect x="110" y="85" width="24" height="10" rx="2" fill={C.accentSoft} />
+      <circle cx="147" cy="90" r="3.4" fill={C.on} />
+      <circle cx="147" cy="101" r="3.4" fill={C.warn} />
+      <rect x="104" y="120" width="50" height="5" rx="2.5" fill={C.steelDark} />
+      <rect x="150" y="130" width="9" height="12" rx="3" fill={C.line} />
+      <Louvers x={172} y={70} w={34} h={76} />
+      {/* patín */}
+      <rect x="22" y="158" width="196" height="15" rx="4" fill={C.line} />
+      <rect x="44" y="162" width="24" height="7" rx="2" fill={C.ink} />
+      <rect x="172" y="162" width="24" height="7" rx="2" fill={C.ink} />
+    </Base>
+  )
+}
+
+/* ============ Planta CC — gabinete de dos zonas ============ */
+function PlantaCC() {
+  return (
+    <Base shadow={64}>
+      <rect x="58" y="14" width="124" height="166" rx="7" fill={C.body} stroke={C.line} strokeWidth="2" />
+      {/* zona rectificadores */}
+      <rect x="68" y="24" width="104" height="76" rx="5" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
+      {[0, 1, 2, 3].map((i) => (
+        <g key={i}>
+          <rect x="74" y={30 + i * 17} width="92" height="13" rx="3" fill={C.bodyAlt} stroke={C.steel} strokeWidth="1.2" />
+          <rect x="79" y={34 + i * 17} width="26" height="5" rx="2.5" fill={C.accent} />
+          <circle cx="158" cy={36.5 + i * 17} r="3" fill={C.on} />
+        </g>
+      ))}
+      {/* separación de zonas */}
+      <rect x="68" y="106" width="104" height="5" rx="2.5" fill={C.steelDark} />
+      {/* zona baterías */}
+      <rect x="68" y="117" width="104" height="53" rx="5" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
+      {[0, 1].map((r) =>
+        [0, 1, 2, 3].map((c) => (
           <g key={r + '-' + c}>
-            <rect x={136 + c * 38} y={38 + r * 34} width="32" height="24" rx="4" fill={C.bodyAlt} stroke={C.line} strokeWidth="1.6" />
-            <rect x={141 + c * 38} y={34 + r * 34} width="6" height="5" rx="1.5" fill={C.off} />
-            <rect x={157 + c * 38} y={34 + r * 34} width="6" height="5" rx="1.5" fill={C.ink} />
+            <rect x={75 + c * 24} y={128 + r * 25} width="20" height="18" rx="3" fill={C.bodyAlt} stroke={C.line} strokeWidth="1.4" />
+            <rect x={78 + c * 24} y={125 + r * 25} width="5" height="4" rx="1.5" fill={C.off} />
+            <rect x={88 + c * 24} y={125 + r * 25} width="5" height="4" rx="1.5" fill={C.ink} />
           </g>
         ))
       )}
-      <path d="M114 100 H126" stroke={C.accent} strokeWidth="3" strokeLinecap="round" />
+      <rect x="66" y="176" width="108" height="6" rx="3" fill={C.line} />
     </Base>
   )
 }
 
-/* ----------------------------------------------------- Tablero eléctrico */
+/* ============ Tablero — gabinete con puerta abierta ============ */
 function Tablero() {
   return (
-    <Base shadow={64}>
-      <rect x="52" y="14" width="136" height="166" rx="11" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <rect x="64" y="26" width="112" height="142" rx="7" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
+    <Base shadow={90}>
+      {/* puerta abierta hacia el observador */}
+      <path d="M26 36 L64 22 L64 178 L26 164 Z" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" strokeLinejoin="round" />
+      <path d="M34 52 L56 44 L56 152 L34 144 Z" fill={C.body} stroke={C.steel} strokeWidth="1.4" />
+      <rect x="58" y="94" width="5" height="16" rx="2.5" fill={C.line} />
+      {/* cuerpo */}
+      <rect x="64" y="22" width="140" height="156" rx="5" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <rect x="74" y="32" width="120" height="136" rx="3" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
       {/* barra principal */}
-      <rect x="72" y="36" width="96" height="9" rx="4.5" fill={C.brand} />
+      <rect x="82" y="40" width="104" height="9" rx="4.5" fill={C.brand} />
       {/* interruptor general */}
-      <rect x="100" y="54" width="40" height="28" rx="5" fill={C.line} />
-      <rect x="112" y="60" width="16" height="16" rx="3" fill={C.on} />
-      {/* filas de protecciones */}
-      {[0, 1].map((row) => (
-        <g key={row}>
-          <rect x="72" y={94 + row * 38} width="96" height="4" rx="2" fill={C.steel} />
-          {[0, 1, 2, 3, 4, 5].map((i) => (
+      <rect x="116" y="56" width="36" height="22" rx="4" fill={C.line} />
+      <rect x="128" y="61" width="12" height="12" rx="2" fill={C.on} />
+      {/* filas de protecciones sobre riel DIN */}
+      {[0, 1, 2].map((r) => (
+        <g key={r}>
+          <rect x="82" y={90 + r * 26} width="104" height="3.5" rx="1.75" fill={C.steelDark} />
+          {[...Array(8)].map((_, i) => (
             <g key={i}>
-              <rect x={73 + i * 16} y={102 + row * 38} width="12" height="24" rx="3" fill={C.bodyAlt} stroke={C.steel} strokeWidth="1.4" />
-              <rect x={76 + i * 16} y={106 + row * 38} width="6" height="9" rx="1.5" fill={i % 3 === 0 ? C.off : C.accent} />
+              <rect x={83 + i * 13} y={95 + r * 26} width="10" height="18" rx="2" fill={C.bodyAlt} stroke={C.steel} strokeWidth="1.2" />
+              <rect x={85.5 + i * 13} y={98 + r * 26} width="5" height="7" rx="1.5" fill={i % 3 === 0 ? C.off : C.accent} />
             </g>
           ))}
         </g>
       ))}
-      {/* manilla */}
-      <rect x="180" y="88" width="6" height="24" rx="3" fill={C.line} />
     </Base>
   )
 }
 
-/* ------------------------------------------------- Clima de precisión */
+/* ============ CRAC — vertical sobre piso técnico ============ */
 function CracPrecision() {
   return (
-    <Base shadow={62}>
-      <rect x="66" y="14" width="108" height="166" rx="11" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <rect x="78" y="26" width="84" height="26" rx="6" fill={C.brand} />
-      <rect x="86" y="34" width="32" height="11" rx="3" fill={C.accentSoft} />
-      <circle cx="152" cy="39" r="4" fill={C.on} />
-      {/* serpentín */}
-      <rect x="78" y="62" width="84" height="46" rx="6" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-      {[0, 1, 2].map((i) => (
-        <line key={i} x1="84" y1={73 + i * 14} x2="156" y2={73 + i * 14} stroke={C.accent} strokeWidth="2.6" />
-      ))}
-      {/* ventilador */}
-      <circle cx="120" cy="138" r="27" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <g fill={C.steelDark}>
-        <path d="M120 138 L120 113 a25 25 0 0 1 19 11 Z" />
-        <path d="M120 138 L142 152 a25 25 0 0 1 -20 11 Z" />
-        <path d="M120 138 L98 152 a25 25 0 0 1 1 -24 Z" />
-      </g>
-      <circle cx="120" cy="138" r="5.5" fill={C.line} />
-      {/* impulsión */}
-      <Flow d="M84 176 v-8 M84 168 l-4 4 M84 168 l4 4" />
-      <Flow d="M156 176 v-8 M156 168 l-4 4 M156 168 l4 4" />
+    <Base shadow={90}>
+      <rect x="74" y="10" width="94" height="146" rx="6" fill={C.body} stroke={C.line} strokeWidth="2" />
+      {/* panel de control */}
+      <rect x="84" y="20" width="74" height="24" rx="4" fill={C.brand} />
+      <rect x="90" y="26" width="28" height="12" rx="2" fill={C.accentSoft} />
+      <circle cx="148" cy="32" r="3.6" fill={C.on} />
+      {/* reja frontal de aspiración */}
+      <Louvers x={84} y={52} w={74} h={94} n={8} />
+      {/* piso técnico */}
+      <rect x="18" y="156" width="204" height="12" rx="2" fill={C.bodyAlt} stroke={C.line} strokeWidth="1.6" />
+      <line x1="70" y1="156" x2="70" y2="168" stroke={C.steelDark} strokeWidth="1.6" />
+      <line x1="120" y1="156" x2="120" y2="168" stroke={C.steelDark} strokeWidth="1.6" />
+      <line x1="170" y1="156" x2="170" y2="168" stroke={C.steelDark} strokeWidth="1.6" />
+      {/* descarga bajo el piso */}
+      <Flow d="M98 172 v14 M98 186 l-5 -5 M98 186 l5 -5" />
+      <Flow d="M144 172 v14 M144 186 l-5 -5 M144 186 l5 -5" />
     </Base>
   )
 }
 
-/* ------------------------------------------------------- Split / HVAC */
+/* ============ Split — dos cuerpos separados ============ */
 function SplitHvac() {
   return (
-    <Base>
-      {/* evaporadora */}
-      <rect x="20" y="34" width="124" height="46" rx="14" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <rect x="20" y="62" width="124" height="14" rx="7" fill={C.bodyAlt} />
-      <line x1="34" y1="69" x2="130" y2="69" stroke={C.steelDark} strokeWidth="1.8" />
-      <rect x="96" y="44" width="34" height="9" rx="3" fill={C.accentSoft} />
-      <circle cx="134" cy="48" r="3.6" fill={C.on} />
-      <Flow d="M46 88 q6 12 0 22" />
-      <Flow d="M78 88 q6 12 0 22" />
-      <Flow d="M110 88 q6 12 0 22" />
-      {/* condensadora */}
-      <rect x="150" y="98" width="74" height="72" rx="10" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <circle cx="187" cy="134" r="25" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-      <g stroke={C.steelDark} strokeWidth="2.4" fill="none">
-        <circle cx="187" cy="134" r="17" />
-        <circle cx="187" cy="134" r="9" />
-      </g>
-      <circle cx="187" cy="134" r="4" fill={C.line} />
+    <Base shadow={80}>
+      {/* muro */}
+      <rect x="14" y="18" width="6" height="150" rx="3" fill={C.steel} />
+      {/* evaporadora mural */}
+      <rect x="22" y="30" width="112" height="40" rx="13" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <rect x="22" y="56" width="112" height="13" rx="6.5" fill={C.bodyAlt} stroke={C.steel} strokeWidth="1.4" />
+      <line x1="34" y1="62" x2="122" y2="62" stroke={C.steelDark} strokeWidth="1.8" />
+      <rect x="96" y="39" width="26" height="8" rx="3" fill={C.accentSoft} />
+      <circle cx="127" cy="43" r="3.2" fill={C.on} />
+      <Flow d="M48 78 q6 12 0 22" />
+      <Flow d="M78 78 q6 12 0 22" />
+      <Flow d="M108 78 q6 12 0 22" />
       {/* cañería de interconexión */}
-      <path d="M144 60 H166 a8 8 0 0 1 8 8 V98" fill="none" stroke={C.steelDark} strokeWidth="4" strokeLinecap="round" />
+      <path d="M134 50 H160 a10 10 0 0 1 10 10 V96" fill="none" stroke={C.steelDark} strokeWidth="5" strokeLinecap="round" />
+      {/* condensadora exterior */}
+      <rect x="146" y="96" width="80" height="72" rx="8" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <Fan cx={186} cy={132} r={27} />
+      <rect x="152" y="160" width="68" height="5" rx="2.5" fill={C.steelDark} />
     </Base>
   )
 }
 
-/* ------------------------------------------------------- Bomba de agua */
+/* ============ Bomba — voluta + motor + descarga vertical ============ */
 function Bomba() {
   return (
     <Base>
-      <rect x="34" y="152" width="172" height="16" rx="5" fill={C.line} />
-      {/* motor */}
-      <rect x="42" y="88" width="86" height="60" rx="14" fill={C.body} stroke={C.line} strokeWidth="2" />
-      {[0, 1, 2, 3, 4].map((i) => (
-        <line key={i} x1={56 + i * 16} y1="94" x2={56 + i * 16} y2="142" stroke={C.steelDark} strokeWidth="3" />
+      <rect x="26" y="156" width="188" height="15" rx="4" fill={C.line} />
+      {/* motor con aletas */}
+      <rect x="30" y="94" width="84" height="58" rx="20" fill={C.body} stroke={C.line} strokeWidth="2" />
+      {[...Array(6)].map((_, i) => (
+        <line key={i} x1={44 + i * 12} y1="100" x2={44 + i * 12} y2="146" stroke={C.steelDark} strokeWidth="3" />
       ))}
+      <rect x="52" y="80" width="34" height="16" rx="4" fill={C.brand} />
+      {/* acople */}
+      <rect x="114" y="110" width="16" height="26" rx="3" fill={C.steel} stroke={C.line} strokeWidth="1.6" />
       {/* voluta */}
-      <circle cx="164" cy="118" r="38" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <circle cx="164" cy="118" r="16" fill={C.steel} stroke={C.line} strokeWidth="2" />
-      <circle cx="164" cy="118" r="5" fill={C.line} />
-      {/* descarga y succión */}
-      <rect x="152" y="36" width="24" height="46" rx="6" fill={C.accent} />
-      <rect x="146" y="28" width="36" height="12" rx="5" fill={C.brand} />
-      <rect x="200" y="106" width="30" height="24" rx="6" fill={C.accent} />
-      <rect x="226" y="100" width="12" height="36" rx="5" fill={C.brand} />
+      <path d="M148 96 Q150 62 156 50 L188 50 Q198 76 202 100 Z" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" strokeLinejoin="round" />
+      <circle cx="168" cy="120" r="38" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
+      {/* brida de succión axial */}
+      <circle cx="168" cy="120" r="23" fill={C.body} stroke={C.line} strokeWidth="1.8" />
+      <circle cx="168" cy="120" r="13" fill={C.steel} stroke={C.line} strokeWidth="1.8" />
+      {[0, 60, 120, 180, 240, 300].map((a) => (
+        <circle key={a} r="2.4" fill={C.line}
+          cx={168 + 19 * Math.cos((a * Math.PI) / 180)}
+          cy={120 + 19 * Math.sin((a * Math.PI) / 180)} />
+      ))}
+      {/* brida de descarga */}
+      <rect x="150" y="38" width="44" height="13" rx="4" fill={C.brand} />
     </Base>
   )
 }
 
-/* ---------------------------------------------------- Banco de baterías */
+/* ============ Banco de baterías — rack ABIERTO ============ */
 function BancoBateria() {
   return (
-    <Base>
-      <rect x="26" y="22" width="188" height="152" rx="11" fill={C.body} stroke={C.line} strokeWidth="2" />
-      {[0, 1, 2].map((r) =>
-        [0, 1, 2, 3].map((c) => (
-          <g key={r + '-' + c}>
-            <rect x={40 + c * 42} y={44 + r * 44} width="34" height="30" rx="4" fill={C.white} stroke={C.line} strokeWidth="1.7" />
-            <rect x={45 + c * 42} y={40 + r * 44} width="7" height="6" rx="2" fill={C.off} />
-            <rect x={62 + c * 42} y={40 + r * 44} width="7" height="6" rx="2" fill={C.ink} />
-            <line x1={40 + c * 42} y1={62 + r * 44} x2={74 + c * 42} y2={62 + r * 44} stroke={C.steel} strokeWidth="1.6" />
-          </g>
-        ))
-      )}
-      {/* puentes de interconexión */}
+    <Base shadow={80}>
+      {/* montantes */}
+      <rect x="30" y="20" width="11" height="158" rx="3" fill={C.steelDark} />
+      <rect x="199" y="20" width="11" height="158" rx="3" fill={C.steelDark} />
+      <rect x="30" y="20" width="180" height="9" rx="3" fill={C.line} />
       {[0, 1, 2].map((r) => (
-        <g key={'p' + r} stroke={C.accent} strokeWidth="2.6" strokeLinecap="round">
-          <line x1="69" y1={43 + r * 44} x2="87" y2={43 + r * 44} />
-          <line x1="111" y1={43 + r * 44} x2="129" y2={43 + r * 44} />
-          <line x1="153" y1={43 + r * 44} x2="171" y2={43 + r * 44} />
+        <g key={r}>
+          {/* bandeja */}
+          <rect x="30" y={78 + r * 46} width="180" height="8" rx="3" fill={C.steel} stroke={C.line} strokeWidth="1.4" />
+          {/* celdas */}
+          {[0, 1, 2, 3, 4].map((c) => (
+            <g key={c}>
+              <rect x={46 + c * 31} y={46 + r * 46} width="26" height="32" rx="3" fill={C.white} stroke={C.line} strokeWidth="1.7" />
+              <rect x={50 + c * 31} y={42 + r * 46} width="6" height="5" rx="2" fill={C.off} />
+              <rect x={62 + c * 31} y={42 + r * 46} width="6" height="5" rx="2" fill={C.ink} />
+              <line x1={46 + c * 31} y1={62 + r * 46} x2={72 + c * 31} y2={62 + r * 46} stroke={C.steel} strokeWidth="1.5" />
+            </g>
+          ))}
+          {/* puentes entre celdas */}
+          {[0, 1, 2, 3].map((c) => (
+            <line key={'p' + c} x1={65 + c * 31} y1={44 + r * 46} x2={83 + c * 31} y2={44 + r * 46}
+              stroke={C.accent} strokeWidth="2.6" strokeLinecap="round" />
+          ))}
         </g>
       ))}
     </Base>
   )
 }
 
-/* ------------------------------------------------------------ Celda MT */
+/* ============ Celda MT — mímico unifilar en la puerta ============ */
 function CeldaMT() {
   return (
-    <Base shadow={56}>
-      <rect x="66" y="14" width="108" height="166" rx="10" fill={C.body} stroke={C.line} strokeWidth="2" />
-      {/* relé de protección */}
-      <rect x="78" y="26" width="84" height="42" rx="6" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-      <circle cx="120" cy="47" r="13" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <path d="M114 47 h12 M126 47 l-4 -3.5 M126 47 l-4 3.5" stroke={C.line} strokeWidth="2" fill="none" strokeLinecap="round" />
-      <circle cx="152" cy="34" r="3.4" fill={C.on} />
-      {/* interruptor extraíble */}
-      <rect x="80" y="78" width="80" height="58" rx="7" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <circle cx="120" cy="98" r="9" fill={C.line} />
-      <path d="M120 107 v16" stroke={C.line} strokeWidth="3.4" strokeLinecap="round" />
-      <path d="M104 124 h32" stroke={C.line} strokeWidth="3.4" strokeLinecap="round" />
-      <rect x="92" y="127" width="56" height="5" rx="2.5" fill={C.steel} />
-      {/* señalización */}
-      <rect x="78" y="146" width="84" height="9" rx="4.5" fill={C.warn} />
+    <Base shadow={54}>
+      <rect x="74" y="10" width="92" height="170" rx="5" fill={C.body} stroke={C.line} strokeWidth="2" />
+      {/* compartimento de relé */}
+      <rect x="82" y="20" width="76" height="42" rx="4" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
+      <rect x="94" y="27" width="52" height="28" rx="3" fill={C.ink} />
+      <rect x="99" y="32" width="24" height="12" rx="2" fill={C.accentSoft} />
+      <circle cx="138" cy="35" r="3" fill={C.on} />
+      <circle cx="138" cy="46" r="3" fill={C.off} />
+      {/* puerta con mímico unifilar */}
+      <rect x="82" y="70" width="76" height="76" rx="4" fill={C.bodyAlt} stroke={C.line} strokeWidth="1.8" />
+      <path d="M120 78 V92 M120 112 V126" stroke={C.brand} strokeWidth="3" strokeLinecap="round" />
+      <rect x="111" y="92" width="18" height="20" rx="2" fill={C.white} stroke={C.brand} strokeWidth="3" />
+      <path d="M120 126 L133 138" stroke={C.brand} strokeWidth="3" strokeLinecap="round" />
+      <circle cx="120" cy="126" r="3" fill={C.brand} />
+      <circle cx="120" cy="138" r="3" fill={C.brand} />
+      <path d="M112 138 h16" stroke={C.brand} strokeWidth="3" strokeLinecap="round" />
+      {/* compartimento del interruptor extraíble */}
+      <rect x="82" y="154" width="76" height="18" rx="4" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
+      <rect x="108" y="160" width="24" height="6" rx="3" fill={C.line} />
+      {/* lámparas de señalización */}
       {[0, 1, 2].map((i) => (
-        <circle key={i} cx={94 + i * 26} cy="168" r="7.5" fill="#fde68a" stroke={C.line} strokeWidth="1.8" />
+        <circle key={i} cx={169 + 0} cy={30 + i * 16} r="4.5" fill={[C.on, C.off, C.warn][i]} stroke={C.line} strokeWidth="1.4" />
       ))}
     </Base>
   )
 }
 
-/* --------------------------------------------------- Transformador MT */
+/* ============ Transformador MT — conservador + radiadores ============ */
 function TransformadorMT() {
   return (
     <Base>
-      {/* aletas de refrigeración */}
-      {[0, 1, 2, 3].map((i) => (
-        <rect key={'l' + i} x="36" y={70 + i * 22} width="22" height="15" rx="4" fill={C.bodyAlt} stroke={C.line} strokeWidth="1.6" />
+      {/* conservador de aceite */}
+      <rect x="78" y="24" width="84" height="22" rx="11" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
+      <rect x="94" y="46" width="7" height="12" fill={C.steelDark} />
+      <rect x="139" y="46" width="7" height="12" fill={C.steelDark} />
+      {/* radiadores */}
+      {[...Array(5)].map((_, i) => (
+        <rect key={'l' + i} x={30 + i * 9} y="78" width="6" height="74" rx="3" fill={C.steel} stroke={C.line} strokeWidth="1.3" />
       ))}
-      {[0, 1, 2, 3].map((i) => (
-        <rect key={'r' + i} x="182" y={70 + i * 22} width="22" height="15" rx="4" fill={C.bodyAlt} stroke={C.line} strokeWidth="1.6" />
+      {[...Array(5)].map((_, i) => (
+        <rect key={'r' + i} x={168 + i * 9} y="78" width="6" height="74" rx="3" fill={C.steel} stroke={C.line} strokeWidth="1.3" />
       ))}
       {/* cuba */}
-      <rect x="56" y="60" width="128" height="104" rx="10" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <rect x="70" y="132" width="100" height="8" rx="4" fill={C.steel} />
-      <rect x="70" y="148" width="46" height="6" rx="3" fill={C.steel} />
-      {/* bushings AT */}
+      <rect x="78" y="58" width="84" height="100" rx="6" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <rect x="88" y="132" width="64" height="6" rx="3" fill={C.steel} />
+      <rect x="88" y="144" width="34" height="5" rx="2.5" fill={C.steel} />
+      {/* bushings AT: porcelana escalonada */}
       {[0, 1, 2].map((i) => (
         <g key={'at' + i}>
-          <rect x={76 + i * 24} y="40" width="8" height="22" rx="3" fill={C.steelDark} />
-          <circle cx={80 + i * 24} cy="34" r="8.5" fill="#fca5a5" stroke={C.line} strokeWidth="1.8" />
+          <rect x={92 + i * 26} y="42" width="7" height="18" fill={C.steelDark} />
+          <ellipse cx={95.5 + i * 26} cy="40" rx="10" ry="4" fill="#fca5a5" stroke={C.line} strokeWidth="1.3" />
+          <ellipse cx={95.5 + i * 26} cy="33" rx="8" ry="3.5" fill="#fca5a5" stroke={C.line} strokeWidth="1.3" />
+          <ellipse cx={95.5 + i * 26} cy="27" rx="6" ry="3" fill="#fca5a5" stroke={C.line} strokeWidth="1.3" />
         </g>
       ))}
-      {/* bushings BT */}
-      {[0, 1, 2, 3].map((i) => (
-        <g key={'bt' + i}>
-          <rect x={150 + i * 11} y="46" width="5" height="16" rx="2" fill={C.steelDark} />
-          <circle cx={152 + i * 11} cy="43" r="5" fill={C.brand} />
-        </g>
-      ))}
-      <rect x="82" y="72" width="46" height="6" rx="3" fill={C.accentSoft} />
+      {/* base con ruedas */}
+      <rect x="70" y="158" width="100" height="11" rx="3" fill={C.line} />
+      <circle cx="88" cy="174" r="6" fill={C.ink} />
+      <circle cx="152" cy="174" r="6" fill={C.ink} />
     </Base>
   )
 }
 
-/* ------------------------------------------------ Torre de enfriamiento */
+/* ============ Torre de enfriamiento — chimenea acampanada ============ */
 function TorreEnfriamiento() {
   return (
-    <Base shadow={70}>
-      <path d="M56 62 L184 62 L164 172 L76 172 Z" fill={C.body} stroke={C.line} strokeWidth="2" strokeLinejoin="round" />
+    <Base shadow={74}>
+      {/* chimenea acampanada */}
+      <path d="M84 76 L94 34 L146 34 L156 76 Z" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" strokeLinejoin="round" />
+      <ellipse cx="120" cy="34" rx="26" ry="8" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <Fan cx={120} cy={34} r={20} />
+      {/* cuerpo trapezoidal */}
+      <path d="M62 76 L178 76 L170 152 L70 152 Z" fill={C.body} stroke={C.line} strokeWidth="2" strokeLinejoin="round" />
+      {/* rejillas de entrada de aire */}
       {[0, 1, 2, 3].map((i) => (
-        <line key={i} x1={80 + i * 2} y1={148 - i * 20} x2={160 - i * 2} y2={148 - i * 20} stroke={C.steel} strokeWidth="4" strokeLinecap="round" />
+        <line key={i} x1={74 + i * 1.5} y1={94 + i * 15} x2={166 - i * 1.5} y2={94 + i * 15}
+          stroke={C.steelDark} strokeWidth="5" strokeLinecap="round" />
       ))}
-      {/* plenum superior */}
-      <ellipse cx="120" cy="58" rx="66" ry="13" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <ellipse cx="120" cy="58" rx="42" ry="8" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-      <g stroke={C.steelDark} strokeWidth="2.4" strokeLinecap="round">
-        <line x1="86" y1="58" x2="154" y2="58" />
-        <line x1="120" y1="50" x2="120" y2="66" />
-        <line x1="96" y1="53" x2="144" y2="63" />
-        <line x1="96" y1="63" x2="144" y2="53" />
-      </g>
-      <circle cx="120" cy="58" r="5" fill={C.line} />
+      {/* piscina y cañerías */}
+      <rect x="56" y="152" width="128" height="20" rx="4" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
+      <rect x="62" y="158" width="116" height="8" rx="4" fill={C.accent} />
+      <rect x="184" y="118" width="34" height="11" rx="5.5" fill={C.accent} />
+      <rect x="184" y="136" width="34" height="11" rx="5.5" fill={C.accentSoft} />
       {/* aire de salida */}
-      <Flow d="M98 36 v-14 M98 22 l-4 4 M98 22 l4 4" />
-      <Flow d="M142 36 v-14 M142 22 l-4 4 M142 22 l4 4" />
-      {/* agua */}
-      <rect x="70" y="168" width="100" height="10" rx="5" fill={C.accent} />
+      <Flow d="M100 26 v-14 M100 12 l-5 5 M100 12 l5 5" />
+      <Flow d="M140 26 v-14 M140 12 l-5 5 M140 12 l5 5" />
     </Base>
   )
 }
 
-/* ------------------------------------------------------------- Chiller */
+/* ============ Chiller — ventiladores EN EL TECHO ============ */
 function Chiller() {
   return (
-    <Base>
-      <rect x="22" y="46" width="196" height="106" rx="11" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <rect x="34" y="152" width="26" height="12" rx="4" fill={C.ink} />
-      <rect x="180" y="152" width="26" height="12" rx="4" fill={C.ink} />
-      {/* condensador */}
-      <rect x="34" y="58" width="94" height="82" rx="7" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-      {[...Array(8)].map((_, i) => (
-        <line key={i} x1={42 + i * 11} y1="66" x2={42 + i * 11} y2="132" stroke={C.steelDark} strokeWidth="2.2" />
-      ))}
-      {/* compresores */}
-      <circle cx="156" cy="82" r="20" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <circle cx="156" cy="82" r="8" fill={C.steel} />
-      <circle cx="196" cy="82" r="20" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <circle cx="196" cy="82" r="8" fill={C.steel} />
-      {/* circuito hidráulico */}
-      <rect x="140" y="114" width="72" height="10" rx="5" fill={C.accent} />
-      <rect x="140" y="130" width="72" height="10" rx="5" fill={C.accentSoft} />
+    <Base shadow={92}>
+      <Fan cx={70} cy={54} r={26} />
+      <Fan cx={120} cy={54} r={26} />
+      <Fan cx={170} cy={54} r={26} />
+      {/* bancada superior */}
+      <rect x="28" y="74" width="184" height="12" rx="4" fill={C.brand} />
+      {/* cuerpo */}
+      <rect x="28" y="84" width="184" height="72" rx="7" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <Fins x={38} y={94} w={132} h={52} n={13} />
+      {/* tablero de control */}
+      <rect x="178" y="94" width="26" height="52" rx="4" fill={C.brand} />
+      <rect x="183" y="100" width="16" height="10" rx="2" fill={C.accentSoft} />
+      <circle cx="191" cy="120" r="3.4" fill={C.on} />
+      {/* base y cañerías */}
+      <rect x="36" y="156" width="168" height="12" rx="3" fill={C.line} />
+      <rect x="212" y="106" width="22" height="10" rx="5" fill={C.accent} />
+      <rect x="212" y="124" width="22" height="10" rx="5" fill={C.accentSoft} />
     </Base>
   )
 }
 
-/* -------------------------------------------------- AHC / manejadora */
+/* ============ AHC — ductos rectangulares a los lados ============ */
 function AHC() {
   return (
-    <Base>
-      <rect x="22" y="42" width="196" height="112" rx="11" fill={C.body} stroke={C.line} strokeWidth="2" />
-      {/* sección de filtros */}
-      <rect x="34" y="54" width="44" height="88" rx="6" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-      <path d="M34 54 L78 142 M50 54 L78 110 M66 54 L78 78 M34 78 L60 142 M34 110 L44 142"
-        stroke={C.steel} strokeWidth="1.8" fill="none" />
-      {/* serpentín */}
-      <rect x="88" y="54" width="52" height="88" rx="6" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
+    <Base shadow={92}>
+      {/* ductos */}
+      <rect x="6" y="70" width="36" height="42" rx="4" fill={C.steel} stroke={C.line} strokeWidth="2" />
+      <rect x="198" y="70" width="36" height="42" rx="4" fill={C.steel} stroke={C.line} strokeWidth="2" />
+      <Flow d="M14 91 h18 M32 91 l-6 -5 M32 91 l-6 5" />
+      <Flow d="M206 91 h18 M224 91 l-6 -5 M224 91 l-6 5" />
+      {/* cuerpo modular */}
+      <rect x="40" y="46" width="160" height="106" rx="6" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <line x1="93" y1="46" x2="93" y2="152" stroke={C.line} strokeWidth="2" />
+      <line x1="146" y1="46" x2="146" y2="152" stroke={C.line} strokeWidth="2" />
+      {/* sección filtros */}
+      <rect x="49" y="58" width="36" height="82" rx="4" fill={C.white} stroke={C.steel} strokeWidth="1.5" />
+      <path d="M49 58 L85 94 M49 94 L85 130 M49 76 L85 112 M67 58 L85 76 M49 112 L67 130"
+        fill="none" stroke={C.steel} strokeWidth="1.6" />
+      {/* sección serpentín */}
+      <rect x="102" y="58" width="36" height="82" rx="4" fill={C.white} stroke={C.steel} strokeWidth="1.5" />
       {[0, 1, 2, 3, 4].map((i) => (
-        <line key={i} x1="95" y1={66 + i * 17} x2="133" y2={66 + i * 17} stroke={C.accent} strokeWidth="2.6" />
+        <line key={i} x1="108" y1={68 + i * 16} x2="132" y2={68 + i * 16} stroke={C.accent} strokeWidth="2.6" />
       ))}
-      {/* ventilador */}
-      <circle cx="178" cy="98" r="30" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <g fill={C.steelDark}>
-        <path d="M178 98 L178 70 a28 28 0 0 1 21 12 Z" />
-        <path d="M178 98 L202 114 a28 28 0 0 1 -22 12 Z" />
-        <path d="M178 98 L154 114 a28 28 0 0 1 1 -27 Z" />
-      </g>
-      <circle cx="178" cy="98" r="6" fill={C.line} />
-      {/* flujo */}
-      <Flow d="M8 76 h12 M20 76 l-5 -4 M20 76 l-5 4" />
-      <Flow d="M8 120 h12 M20 120 l-5 -4 M20 120 l-5 4" />
-      <Flow d="M220 98 h12 M232 98 l-5 -4 M232 98 l-5 4" />
+      {/* sección ventilador, con visor */}
+      <circle cx="173" cy="99" r="26" fill={C.white} stroke={C.steel} strokeWidth="1.5" />
+      <Fan cx={173} cy={99} r={21} />
+      {/* manillas */}
+      <rect x="87" y="94" width="4" height="14" rx="2" fill={C.line} />
+      <rect x="140" y="94" width="4" height="14" rx="2" fill={C.line} />
+      <rect x="193" y="94" width="4" height="14" rx="2" fill={C.line} />
+      <rect x="48" y="152" width="144" height="10" rx="3" fill={C.line} />
     </Base>
   )
 }
 
-/* ----------------------------------------------------- ACU / unidad A/A */
+/* ============ ACU — UNA reja circular grande ============ */
 function ACU() {
   return (
-    <Base shadow={72}>
-      <rect x="42" y="40" width="156" height="124" rx="12" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <rect x="54" y="52" width="132" height="70" rx="8" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-      {/* rejilla del ventilador */}
-      <circle cx="120" cy="87" r="30" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <g stroke={C.steelDark} strokeWidth="2.4" fill="none">
-        <circle cx="120" cy="87" r="22" />
-        <circle cx="120" cy="87" r="14" />
-        <circle cx="120" cy="87" r="7" />
-      </g>
-      <circle cx="120" cy="87" r="3.4" fill={C.line} />
-      {/* condensador inferior */}
-      <rect x="54" y="130" width="132" height="24" rx="6" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-      {[...Array(11)].map((_, i) => (
-        <line key={i} x1={62 + i * 12} y1="136" x2={62 + i * 12} y2="148" stroke={C.steelDark} strokeWidth="2.2" />
+    <Base shadow={70}>
+      <rect x="58" y="34" width="124" height="126" rx="9" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <rect x="66" y="42" width="108" height="12" rx="4" fill={C.brand} />
+      {/* reja circular */}
+      <circle cx="120" cy="106" r="46" fill={C.white} stroke={C.line} strokeWidth="2" />
+      {[38, 30, 22, 14].map((r) => (
+        <circle key={r} cx="120" cy="106" r={r} fill="none" stroke={C.steelDark} strokeWidth="2" />
       ))}
-      {/* cañerías */}
-      <rect x="198" y="70" width="26" height="9" rx="4.5" fill={C.accent} />
-      <rect x="198" y="86" width="26" height="9" rx="4.5" fill={C.accentSoft} />
-      <circle cx="176" cy="60" r="3.6" fill={C.on} />
+      {[0, 45, 90, 135].map((a) => (
+        <line key={a} transform={`rotate(${a} 120 106)`} x1="74" y1="106" x2="166" y2="106"
+          stroke={C.steelDark} strokeWidth="2" />
+      ))}
+      <circle cx="120" cy="106" r="8" fill={C.line} />
+      {/* cañerías y patas */}
+      <rect x="182" y="72" width="26" height="10" rx="5" fill={C.accent} />
+      <rect x="182" y="90" width="26" height="10" rx="5" fill={C.accentSoft} />
+      <rect x="70" y="160" width="16" height="14" rx="3" fill={C.line} />
+      <rect x="154" y="160" width="16" height="14" rx="3" fill={C.line} />
+      <circle cx="168" cy="48" r="3.4" fill={C.on} />
     </Base>
   )
 }
 
-/* ---------------------------------------------- Estanque de combustible */
+/* ============ Estanque — cilindro horizontal sobre silletas ============ */
 function EstanqueCombustible() {
   return (
-    <Base>
+    <Base shadow={92}>
       {/* silletas */}
-      <rect x="54" y="152" width="34" height="18" rx="4" fill={C.line} />
-      <rect x="152" y="152" width="34" height="18" rx="4" fill={C.line} />
+      <path d="M52 154 L74 154 L80 174 L46 174 Z" fill={C.line} strokeLinejoin="round" />
+      <path d="M166 154 L188 154 L194 174 L160 174 Z" fill={C.line} strokeLinejoin="round" />
       {/* cuerpo cilíndrico */}
-      <rect x="34" y="62" width="172" height="92" rx="46" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <ellipse cx="62" cy="108" rx="17" ry="45" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      {/* nivel de combustible */}
-      <path d="M78 130 h112 a30 30 0 0 1 -14 22 H88 a30 30 0 0 1 -10 -22 Z" fill={C.warn} opacity="0.55" />
-      {/* boca de llenado */}
-      <rect x="112" y="42" width="20" height="22" rx="5" fill={C.steelDark} />
-      <rect x="104" y="34" width="36" height="12" rx="5" fill={C.brand} />
-      {/* indicador de nivel */}
-      <circle cx="168" cy="94" r="15" fill={C.white} stroke={C.line} strokeWidth="2" />
-      <path d="M168 94 L177 86" stroke={C.off} strokeWidth="2.6" strokeLinecap="round" />
-      <circle cx="168" cy="94" r="2.6" fill={C.line} />
+      <rect x="26" y="70" width="188" height="86" rx="43" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <ellipse cx="52" cy="113" rx="19" ry="43" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
+      {/* costuras */}
+      <path d="M108 71 a 19 42 0 0 0 0 84" fill="none" stroke={C.steel} strokeWidth="1.8" />
+      <path d="M164 71 a 19 42 0 0 0 0 84" fill="none" stroke={C.steel} strokeWidth="1.8" />
+      {/* boca de hombre */}
+      <rect x="104" y="54" width="34" height="18" rx="4" fill={C.steelDark} />
+      <rect x="98" y="46" width="46" height="11" rx="5" fill={C.brand} />
       {/* venteo */}
-      <rect x="182" y="46" width="7" height="20" rx="3" fill={C.steelDark} />
-      <path d="M186 46 q9 -6 15 0" fill="none" stroke={C.steelDark} strokeWidth="4" strokeLinecap="round" />
+      <rect x="176" y="46" width="8" height="26" rx="3" fill={C.steelDark} />
+      <path d="M180 47 q11 -8 18 0" fill="none" stroke={C.steelDark} strokeWidth="5" strokeLinecap="round" />
+      {/* escalera lateral */}
+      <line x1="196" y1="86" x2="196" y2="154" stroke={C.steelDark} strokeWidth="3" />
+      <line x1="208" y1="86" x2="208" y2="154" stroke={C.steelDark} strokeWidth="3" />
+      {[0, 1, 2, 3].map((i) => (
+        <line key={i} x1="196" y1={98 + i * 17} x2="208" y2={98 + i * 17} stroke={C.steelDark} strokeWidth="2.4" />
+      ))}
+      {/* nivel */}
+      <circle cx="82" cy="100" r="12" fill={C.white} stroke={C.line} strokeWidth="2" />
+      <path d="M82 100 L89 93" stroke={C.warn} strokeWidth="2.6" strokeLinecap="round" />
     </Base>
   )
 }
 
-/* -------------------------------------------------------- Alcantarillado */
+/* ============ Alcantarillado — corte de terreno ============ */
 function Alcantarilla() {
   return (
-    <Base shadow={74}>
-      {/* cámara */}
-      <ellipse cx="120" cy="74" rx="72" ry="26" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <path d="M48 74 V132 a72 26 0 0 0 144 0 V74" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <ellipse cx="120" cy="74" rx="52" ry="18" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
-      {/* tapa con patrón */}
-      <g stroke={C.steelDark} strokeWidth="2" strokeLinecap="round">
-        <line x1="82" y1="74" x2="158" y2="74" />
-        <line x1="120" y1="58" x2="120" y2="90" />
-        <line x1="92" y1="64" x2="148" y2="84" />
-        <line x1="92" y1="84" x2="148" y2="64" />
+    <Base shadow={0}>
+      {/* terreno */}
+      <rect x="10" y="86" width="220" height="94" rx="6" fill={C.bodyAlt} />
+      <rect x="10" y="86" width="220" height="9" rx="4" fill={C.steelDark} />
+      {/* marco y tapa a nivel de suelo */}
+      <ellipse cx="120" cy="88" rx="50" ry="15" fill={C.steel} stroke={C.line} strokeWidth="2" />
+      <ellipse cx="120" cy="86" rx="38" ry="11" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <g stroke={C.steelDark} strokeWidth="1.8" strokeLinecap="round">
+        <line x1="88" y1="86" x2="152" y2="86" />
+        <line x1="120" y1="76" x2="120" y2="96" />
+        <line x1="96" y1="80" x2="144" y2="92" />
+        <line x1="96" y1="92" x2="144" y2="80" />
       </g>
+      {/* cámara enterrada */}
+      <rect x="86" y="98" width="68" height="66" rx="4" fill={C.white} stroke={C.line} strokeWidth="2" />
+      {/* peldaños */}
+      {[0, 1, 2].map((i) => (
+        <line key={i} x1="96" y1={112 + i * 15} x2="110" y2={112 + i * 15} stroke={C.steelDark} strokeWidth="3" strokeLinecap="round" />
+      ))}
       {/* ductos */}
-      <rect x="12" y="112" width="44" height="26" rx="8" fill={C.steel} stroke={C.line} strokeWidth="2" />
-      <rect x="184" y="112" width="44" height="26" rx="8" fill={C.steel} stroke={C.line} strokeWidth="2" />
-      {/* flujo */}
-      <Flow d="M22 125 h20 M42 125 l-5 -4 M42 125 l-5 4" />
-      <Flow d="M196 125 h20 M216 125 l-5 -4 M216 125 l-5 4" />
+      <rect x="16" y="126" width="70" height="24" rx="6" fill={C.steel} stroke={C.line} strokeWidth="2" />
+      <rect x="154" y="126" width="70" height="24" rx="6" fill={C.steel} stroke={C.line} strokeWidth="2" />
+      {/* agua */}
+      <rect x="90" y="152" width="60" height="10" rx="3" fill={C.accent} opacity="0.6" />
+      <rect x="20" y="140" width="66" height="8" rx="4" fill={C.accent} opacity="0.6" />
+      <rect x="154" y="140" width="66" height="8" rx="4" fill={C.accent} opacity="0.6" />
+      <Flow d="M30 134 h22 M52 134 l-5 -4 M52 134 l-5 4" />
+      <Flow d="M186 134 h22 M208 134 l-5 -4 M208 134 l-5 4" />
     </Base>
   )
 }
 
-/* -------------------------------------------------------------- Ascensor */
+/* ============ Ascensor — puertas de hall ============ */
 function Ascensor() {
   return (
-    <Base shadow={60}>
-      {/* ducto */}
-      <rect x="60" y="12" width="120" height="168" rx="10" fill={C.body} stroke={C.line} strokeWidth="2" />
-      {/* poleas y cables */}
-      <circle cx="120" cy="30" r="11" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
-      <circle cx="120" cy="30" r="3.4" fill={C.line} />
-      <line x1="104" y1="34" x2="104" y2="72" stroke={C.steelDark} strokeWidth="2.4" />
-      <line x1="136" y1="34" x2="136" y2="58" stroke={C.steelDark} strokeWidth="2.4" />
-      {/* contrapeso */}
-      <rect x="128" y="58" width="18" height="46" rx="4" fill={C.steelDark} />
-      {/* cabina */}
-      <rect x="72" y="72" width="64" height="82" rx="7" fill={C.white} stroke={C.line} strokeWidth="2" />
-      <line x1="104" y1="78" x2="104" y2="148" stroke={C.steel} strokeWidth="2" />
-      <rect x="80" y="80" width="18" height="26" rx="3" fill={C.glass} />
-      <rect x="110" y="80" width="18" height="26" rx="3" fill={C.glass} />
-      <circle cx="99" cy="118" r="2.6" fill={C.line} />
-      <circle cx="109" cy="118" r="2.6" fill={C.line} />
-      {/* guías */}
-      <rect x="62" y="60" width="7" height="112" rx="3" fill={C.steel} />
-      <rect x="171" y="60" width="7" height="112" rx="3" fill={C.steel} />
-      {/* botonera de piso */}
-      <rect x="188" y="86" width="16" height="26" rx="4" fill={C.brand} />
-      <circle cx="196" cy="94" r="3" fill={C.on} />
-      <circle cx="196" cy="104" r="3" fill={C.accentSoft} />
+    <Base shadow={62}>
+      {/* marco */}
+      <rect x="58" y="18" width="124" height="162" rx="5" fill={C.bodyAlt} stroke={C.line} strokeWidth="2" />
+      {/* indicador de piso */}
+      <rect x="90" y="28" width="60" height="26" rx="4" fill={C.ink} />
+      <rect x="112" y="34" width="16" height="14" rx="2" fill={C.accentSoft} />
+      <path d="M101 47 L96 40 L106 40 Z" fill={C.on} />
+      <path d="M139 36 L144 43 L134 43 Z" fill={C.steelDark} />
+      {/* puertas */}
+      <rect x="70" y="62" width="100" height="110" rx="3" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <rect x="78" y="70" width="36" height="94" rx="2" fill={C.white} stroke={C.steel} strokeWidth="1.5" />
+      <rect x="126" y="70" width="36" height="94" rx="2" fill={C.white} stroke={C.steel} strokeWidth="1.5" />
+      <line x1="120" y1="62" x2="120" y2="172" stroke={C.line} strokeWidth="2.5" />
+      {/* umbral */}
+      <rect x="66" y="172" width="108" height="8" rx="2" fill={C.steelDark} />
+      {/* botonera de llamada */}
+      <rect x="190" y="82" width="20" height="38" rx="5" fill={C.brand} />
+      <circle cx="200" cy="94" r="4" fill={C.on} />
+      <circle cx="200" cy="108" r="4" fill={C.accentSoft} />
     </Base>
   )
 }
 
-/* ------------------------------------------------- Instalación física */
+/* ============ Instalación física — edificio ============ */
 function InstalacionFisica() {
   return (
     <Base>
-      {/* techo */}
       <path d="M22 78 L120 20 L218 78 Z" fill={C.brand} stroke={C.brand} strokeWidth="2" strokeLinejoin="round" />
       <path d="M120 20 L218 78 L196 78 L120 33 Z" fill={C.ink} opacity="0.18" />
-      {/* cuerpo */}
-      <rect x="44" y="78" width="152" height="96" rx="7" fill={C.body} stroke={C.line} strokeWidth="2" />
-      {/* ventanas */}
+      <rect x="44" y="78" width="152" height="96" rx="6" fill={C.body} stroke={C.line} strokeWidth="2" />
       {[0, 1, 2].map((c) =>
         [0, 1].map((r) => (
           <rect key={c + '-' + r} x={58 + c * 46} y={92 + r * 34} width="30" height="24" rx="3"
             fill={C.glass} stroke={C.steel} strokeWidth="1.6" />
         ))
       )}
-      {/* puerta */}
       <rect x="104" y="140" width="34" height="34" rx="4" fill={C.accent} />
       <circle cx="131" cy="158" r="2.8" fill={C.warn} />
-      {/* zócalo */}
       <rect x="36" y="172" width="168" height="8" rx="4" fill={C.line} />
     </Base>
   )
 }
 
-/* -------------------------------------------------- Sistema de monitoreo */
+/* ============ Monitoreo — videowall de 4 pantallas ============ */
 function SistemaMonitoreo() {
   return (
-    <Base>
-      {/* monitor */}
-      <rect x="20" y="26" width="150" height="104" rx="10" fill={C.ink} />
-      <rect x="29" y="35" width="132" height="86" rx="5" fill="#1e293b" />
-      <polyline points="38,102 60,80 78,90 100,58 122,74 144,50" fill="none" stroke={C.on} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points="38,112 60,106 78,109 100,96 122,101 144,88" fill="none" stroke={C.warn} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="144" cy="50" r="4.2" fill={C.on} />
-      <rect x="80" y="130" width="30" height="14" rx="3" fill={C.steel} />
-      <rect x="58" y="144" width="74" height="7" rx="3.5" fill={C.steelDark} />
-      {/* rack NMS */}
-      <rect x="182" y="40" width="52" height="112" rx="8" fill={C.body} stroke={C.line} strokeWidth="2" />
-      {[0, 1, 2, 3, 4].map((i) => (
+    <Base shadow={80}>
+      {/* pantalla 1: curvas */}
+      <rect x="26" y="20" width="90" height="62" rx="6" fill={C.ink} />
+      <polyline points="36,68 54,50 68,58 84,36 106,48" fill="none" stroke={C.on} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+      {/* pantalla 2: barras */}
+      <rect x="124" y="20" width="90" height="62" rx="6" fill={C.ink} />
+      {[26, 44, 34, 52, 40].map((h, i) => (
+        <rect key={i} x={136 + i * 16} y={72 - h} width="10" height={h} rx="2" fill={i === 3 ? C.warn : C.accent} />
+      ))}
+      {/* pantalla 3: tabla */}
+      <rect x="26" y="88" width="90" height="62" rx="6" fill={C.ink} />
+      {[0, 1, 2, 3].map((i) => (
         <g key={i}>
-          <rect x="190" y={50 + i * 20} width="36" height="14" rx="3" fill={C.white} stroke={C.steel} strokeWidth="1.4" />
-          <circle cx="197" cy={57 + i * 20} r="3.2" fill={i === 2 ? C.off : C.on} />
-          <rect x="204" y={55 + i * 20} width="16" height="3.5" rx="1.75" fill={C.steel} />
+          <circle cx="40" cy={102 + i * 13} r="3.4" fill={i === 1 ? C.off : C.on} />
+          <rect x="50" y={100 + i * 13} width="52" height="4" rx="2" fill="#334155" />
         </g>
       ))}
-      {/* enlace */}
-      <path d="M170 88 h12" stroke={C.accent} strokeWidth="2.6" strokeDasharray="4 3" strokeLinecap="round" />
+      {/* pantalla 4: alarma */}
+      <rect x="124" y="88" width="90" height="62" rx="6" fill={C.ink} />
+      <path d="M169 104 L186 132 L152 132 Z" fill="none" stroke={C.off} strokeWidth="3" strokeLinejoin="round" />
+      <line x1="169" y1="113" x2="169" y2="122" stroke={C.off} strokeWidth="3" strokeLinecap="round" />
+      <circle cx="169" cy="127" r="1.8" fill={C.off} />
+      {/* consola */}
+      <rect x="34" y="158" width="172" height="10" rx="4" fill={C.line} />
+      <rect x="88" y="150" width="64" height="8" rx="3" fill={C.steelDark} />
     </Base>
   )
 }
 
-/* ------------------------------------------------------------- Extintor */
+/* ============ Extintor — colgado en muro con señalética ============ */
 function Extintor() {
   return (
-    <Base shadow={44}>
-      {/* manguera */}
-      <path d="M148 52 C 184 62, 188 116, 168 150" fill="none" stroke={C.line} strokeWidth="6" strokeLinecap="round" />
-      <path d="M168 150 l -8 22 l 22 0 z" fill={C.line} />
-      {/* cuerpo */}
-      <rect x="86" y="66" width="68" height="112" rx="18" fill="#dc2626" />
-      <path d="M86 100 h68 v44 h-68 z" fill={C.ink} opacity="0.10" />
-      <rect x="86" y="66" width="68" height="112" rx="18" fill="none" stroke={C.line} strokeWidth="2" />
-      {/* etiqueta */}
-      <rect x="96" y="100" width="48" height="44" rx="5" fill="#fef2f2" stroke={C.line} strokeWidth="1.6" />
-      <rect x="103" y="110" width="34" height="4.5" rx="2.25" fill={C.steelDark} />
-      <rect x="103" y="121" width="34" height="4.5" rx="2.25" fill={C.steelDark} />
-      <rect x="103" y="132" width="21" height="4.5" rx="2.25" fill={C.steelDark} />
-      {/* cuello y válvula */}
-      <rect x="106" y="48" width="28" height="20" rx="4" fill={C.steel} stroke={C.line} strokeWidth="2" />
-      <rect x="94" y="28" width="52" height="22" rx="6" fill={C.line} />
-      <rect x="90" y="16" width="64" height="9" rx="4.5" fill={C.line} />
-      {/* pasador */}
-      <circle cx="154" cy="21" r="7" fill="none" stroke={C.warn} strokeWidth="3.4" />
+    <Base shadow={40}>
+      {/* muro */}
+      <rect x="30" y="10" width="180" height="164" rx="6" fill={C.body} stroke={C.steel} strokeWidth="1.6" />
+      <line x1="30" y1="70" x2="210" y2="70" stroke={C.steel} strokeWidth="1.4" />
+      <line x1="30" y1="126" x2="210" y2="126" stroke={C.steel} strokeWidth="1.4" />
+      <line x1="120" y1="10" x2="120" y2="70" stroke={C.steel} strokeWidth="1.4" />
+      <line x1="76" y1="70" x2="76" y2="126" stroke={C.steel} strokeWidth="1.4" />
+      {/* señalética */}
+      <rect x="142" y="24" width="50" height="50" rx="5" fill="#dc2626" />
+      <rect x="158" y="38" width="16" height="26" rx="5" fill={C.white} />
+      <rect x="162" y="32" width="8" height="7" rx="2" fill={C.white} />
+      <path d="M174 40 q9 3 8 12" fill="none" stroke={C.white} strokeWidth="2.6" strokeLinecap="round" />
+      {/* soporte de muro */}
+      <rect x="66" y="104" width="42" height="9" rx="4" fill={C.steelDark} />
+      {/* extintor */}
+      <rect x="66" y="74" width="42" height="76" rx="14" fill="#dc2626" />
+      <path d="M66 100 h42 v30 h-42 z" fill={C.ink} opacity="0.10" />
+      <rect x="66" y="74" width="42" height="76" rx="14" fill="none" stroke={C.line} strokeWidth="2" />
+      <rect x="73" y="98" width="28" height="28" rx="4" fill="#fef2f2" stroke={C.line} strokeWidth="1.4" />
+      <rect x="78" y="105" width="18" height="3.4" rx="1.7" fill={C.steelDark} />
+      <rect x="78" y="112" width="18" height="3.4" rx="1.7" fill={C.steelDark} />
+      <rect x="78" y="119" width="11" height="3.4" rx="1.7" fill={C.steelDark} />
+      {/* válvula */}
+      <rect x="79" y="62" width="16" height="13" rx="3" fill={C.steel} stroke={C.line} strokeWidth="1.6" />
+      <rect x="71" y="48" width="32" height="15" rx="5" fill={C.line} />
+      <rect x="68" y="40" width="38" height="7" rx="3.5" fill={C.line} />
+      <circle cx="106" cy="44" r="5.5" fill="none" stroke={C.warn} strokeWidth="2.8" />
       {/* manómetro */}
-      <path d="M88 42 H78" stroke={C.line} strokeWidth="5" strokeLinecap="round" />
-      <circle cx="66" cy="42" r="15" fill={C.white} stroke={C.line} strokeWidth="2.4" />
-      <path d="M66 42 L75 33" stroke={C.on} strokeWidth="2.8" strokeLinecap="round" />
-      <circle cx="66" cy="42" r="2.8" fill={C.line} />
+      <path d="M77 56 H66" stroke={C.line} strokeWidth="4" strokeLinecap="round" />
+      <circle cx="58" cy="56" r="11" fill={C.white} stroke={C.line} strokeWidth="2" />
+      <path d="M58 56 L64 50" stroke={C.on} strokeWidth="2.4" strokeLinecap="round" />
+      {/* manguera */}
+      <path d="M104 70 C 124 80, 126 118, 112 140" fill="none" stroke={C.line} strokeWidth="4.5" strokeLinecap="round" />
+      <path d="M112 140 l -6 16 l 15 0 z" fill={C.line} />
+      {/* piso */}
+      <rect x="24" y="174" width="192" height="8" rx="3" fill={C.steelDark} />
     </Base>
   )
 }
 
-/* -------------------------------------------------------------- Genérico */
+/* ============ Genérico — rack con puerta perforada ============ */
 function Generic() {
   return (
-    <Base shadow={62}>
-      <rect x="56" y="30" width="128" height="140" rx="11" fill={C.body} stroke={C.line} strokeWidth="2" />
-      <rect x="70" y="44" width="100" height="24" rx="6" fill={C.brand} />
-      <circle cx="156" cy="56" r="4" fill={C.on} />
-      <rect x="70" y="82" width="100" height="11" rx="5.5" fill={C.bodyAlt} />
-      <rect x="70" y="102" width="68" height="11" rx="5.5" fill={C.bodyAlt} />
-      <rect x="70" y="122" width="84" height="11" rx="5.5" fill={C.bodyAlt} />
-      <rect x="70" y="146" width="100" height="8" rx="4" fill={C.steel} />
+    <Base shadow={56}>
+      <rect x="66" y="16" width="108" height="162" rx="7" fill={C.body} stroke={C.line} strokeWidth="2" />
+      <rect x="76" y="26" width="88" height="142" rx="4" fill={C.white} stroke={C.steel} strokeWidth="1.6" />
+      {[0, 1, 2, 3, 4].map((i) => (
+        <g key={i}>
+          <rect x="84" y={36 + i * 27} width="72" height="19" rx="3" fill={C.bodyAlt} stroke={C.steel} strokeWidth="1.3" />
+          <circle cx="92" cy={45.5 + i * 27} r="3" fill={i === 2 ? C.warn : C.on} />
+          <rect x="102" y={43 + i * 27} width="30" height="4" rx="2" fill={C.steelDark} />
+        </g>
+      ))}
+      <rect x="70" y="174" width="100" height="6" rx="3" fill={C.line} />
     </Base>
   )
 }
