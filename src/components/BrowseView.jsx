@@ -15,7 +15,7 @@ import FieldDefsEditor from './FieldDefsEditor.jsx'
 import ImportModal from './ImportModal.jsx'
 import AssetIllustration from './AssetIllustration.jsx'
 import VigenciaExtintor from './VigenciaExtintor.jsx'
-import { esExtintor, estadoExtintor, resumenVigenciaExtintor, fmtValorFecha } from '../lib/vigencia.js'
+import { esExtintor, estadoExtintor, resumenVigenciaExtintor, fmtValorFecha, anioDe } from '../lib/vigencia.js'
 
 // El Estado de un extintor no se guarda a mano: se calcula desde sus
 // fechas de vencimiento. Para cualquier otro tipo se usa el valor guardado.
@@ -25,6 +25,75 @@ function estadoMostrado(type, asset) {
 
 // Texto sin mayúsculas ni tildes, para comparar filtros de forma tolerante.
 const normTexto = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+/* --- Filtro de columnas tipo fecha: multiselección de años --- */
+// En vez de escribir texto, se despliega la lista de años que realmente
+// existen en esa columna (a partir de los datos cargados) y se pueden
+// tildar varios a la vez -- ej. 2026 y 2027 juntos.
+function FiltroAnios({ opciones, seleccionados, onChange }) {
+  const [abierto, setAbierto] = useState(false)
+
+  const toggle = (anio) => {
+    const set = new Set(seleccionados)
+    set.has(anio) ? set.delete(anio) : set.add(anio)
+    onChange([...set])
+  }
+
+  const resumen =
+    seleccionados.length === 0 ? 'Todos'
+    : seleccionados.length <= 2 ? seleccionados.join(', ')
+    : seleccionados.length + ' años'
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className="filter-select"
+        style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }}
+        onClick={() => setAbierto(v => !v)}
+        onBlur={() => setTimeout(() => setAbierto(false), 160)}
+      >
+        {resumen}
+      </button>
+      {abierto && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+          background: 'var(--panel)', border: '1px solid var(--border)',
+          borderRadius: 8, marginTop: 4, maxHeight: 220, overflowY: 'auto',
+          boxShadow: 'var(--shadow)', padding: 6,
+        }}>
+          {opciones.length === 0 ? (
+            <div style={{ padding: '6px 8px', fontSize: 12, color: 'var(--muted)' }}>Sin fechas cargadas</div>
+          ) : opciones.map(anio => {
+            const sel = seleccionados.includes(anio)
+            return (
+              <div
+                key={anio}
+                onMouseDown={() => toggle(anio)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
+                  fontSize: 13, cursor: 'pointer', borderRadius: 6,
+                  background: sel ? '#eff6ff' : 'transparent',
+                  color: sel ? '#1d4ed8' : 'var(--text)', fontWeight: sel ? 700 : 400,
+                }}
+              >
+                <span style={{ width: 14, flexShrink: 0 }}>{sel ? '✓' : ''}</span>{anio}
+              </div>
+            )
+          })}
+          {seleccionados.length > 0 && (
+            <div
+              onMouseDown={() => onChange([])}
+              style={{ marginTop: 4, padding: '6px 10px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer', borderTop: '1px solid var(--border)' }}
+            >
+              Limpiar selección
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 /* --- Gráficos de conteo (barras horizontales) --- */
 function contarPor(items, obtenerClave) {
@@ -729,9 +798,13 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
   const verVigencia = esExtintor(type)
 
   // Modelo de columnas filtrables: Nombre, Nombre alternativo, cada campo
-  // dinámico del tipo, Estado y (si aplica) Vigencia. Los campos de lista
-  // (select/boolean) se filtran con un desplegable de sus opciones reales;
-  // el resto, con un texto de "contiene".
+  // dinámico del tipo, Estado y (si aplica) Vigencia.
+  //   select/boolean -> desplegable de sus opciones reales
+  //   date           -> desplegable de AÑOS existentes, con selección múltiple
+  //   el resto       -> texto de "contiene"
+  // Los años de las columnas de fecha se calculan sobre `items` completo
+  // (no sobre lo ya filtrado), para que la lista de opciones no se achique
+  // a medida que se aplican otros filtros.
   const columnas = useMemo(() => {
     const cols = [
       { key: '__name', label: 'Nombre', tipo: 'texto', valor: a => a.name || '' },
@@ -745,6 +818,11 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
           key: f.key, label: f.label, tipo: 'select', opciones: ['si', 'no'],
           etiquetas: { si: 'Sí', no: 'No' }, valor: a => a.data?.[f.key] || '',
         })
+      } else if (f.field_type === 'date') {
+        const anios = [...new Set(
+          (items || []).map(a => anioDe(a.data?.[f.key])).filter(Boolean)
+        )].sort((a, b) => a - b)
+        cols.push({ key: f.key, label: f.label, tipo: 'anio', opciones: anios, valor: a => anioDe(a.data?.[f.key]) || '' })
       } else {
         cols.push({ key: f.key, label: f.label, tipo: 'texto', valor: a => String(celda(f, a.data)) })
       }
@@ -764,12 +842,16 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
       })
     }
     return cols
-  }, [fieldDefs, type, verVigencia])
+  }, [fieldDefs, type, verVigencia, items])
 
   const filtered = useMemo(() => {
     if (!items) return []
     return items.filter(a => columnas.every(col => {
       const f = filtros[col.key]
+      if (col.tipo === 'anio') {
+        const anios = f || []
+        return anios.length === 0 || anios.includes(col.valor(a))
+      }
       if (!f) return true
       return col.tipo === 'texto'
         ? normTexto(col.valor(a)).includes(normTexto(f))
@@ -777,7 +859,7 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
     }))
   }, [items, filtros, columnas])
 
-  const hayFiltros = Object.values(filtros).some(Boolean)
+  const hayFiltros = Object.values(filtros).some(v => Array.isArray(v) ? v.length > 0 : Boolean(v))
 
   if (!items) return <Loading />
 
@@ -810,6 +892,12 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
                   <option value=''>Todos</option>
                   {col.opciones.map(o => <option key={o} value={o}>{col.etiquetas?.[o] || o}</option>)}
                 </select>
+              ) : col.tipo === 'anio' ? (
+                <FiltroAnios
+                  opciones={col.opciones}
+                  seleccionados={filtros[col.key] || []}
+                  onChange={vals => setFiltros(f => ({ ...f, [col.key]: vals }))}
+                />
               ) : (
                 <input
                   type='text'

@@ -93,18 +93,18 @@ function buscar(data, keys) {
   return null
 }
 
-// Parte de los extintores se cargó históricamente con precisión de solo
+// Parte de los datos se cargó históricamente con precisión de solo
 // mes/año (ej. "10/2026"), sin día. parseFecha() no lo reconoce a propósito
 // — así la tabla nunca inventa un día que no se cargó. Pero para PODER
-// calcular Estado/Vigencia igual, este parser adicional sí acepta esa
-// forma y asume el día 1 del mes.
+// calcular (vigencia de extintores, año para filtros, etc.) este parser
+// adicional sí acepta esa forma y asume el día 1 del mes.
 //
 // Se asume el día 1 (no el último) porque para una fecha de VENCIMIENTO
 // es la lectura más conservadora: el extintor pasa a OFF apenas empieza
 // el mes de vencimiento, en vez de seguir en ON hasta el último día. Si
 // prefieres el criterio contrario (vigente hasta fin de mes), es un
 // cambio de una línea acá.
-function parseFechaParaCalculo(v) {
+export function parseFechaAproximada(v) {
   const directa = parseFecha(v)
   if (directa) return directa
   if (!v) return null
@@ -119,6 +119,14 @@ function parseFechaParaCalculo(v) {
   return null
 }
 
+// Año (como texto) de cualquier campo tipo 'date', aceptando también la
+// precisión mes/año. Se usa para el filtro "por año" de las columnas de
+// fecha en la tabla de activos.
+export function anioDe(v) {
+  const d = parseFechaAproximada(v)
+  return d ? String(d.getFullYear()) : null
+}
+
 // 'on' | 'off' | null (null = no hay ninguna fecha cargada todavía).
 //
 // Nota: si SOLO una de las dos fechas está cargada, se evalúa con la que
@@ -126,8 +134,8 @@ function parseFechaParaCalculo(v) {
 // sea estrictamente "las dos deben estar cargadas y vigentes", avisa y se
 // ajusta este criterio.
 export function estadoExtintor(data, hoy = hoyLocal()) {
-  const carga = parseFechaParaCalculo(buscar(data, KEYS_CARGA))
-  const ph = parseFechaParaCalculo(buscar(data, KEYS_PH))
+  const carga = parseFechaAproximada(buscar(data, KEYS_CARGA))
+  const ph = parseFechaAproximada(buscar(data, KEYS_PH))
   if (!carga && !ph) return null
 
   const vencida = (d) => d !== null && d.getTime() < hoy.getTime()
@@ -139,7 +147,7 @@ export function resumenVigenciaExtintor(data, hoy = hoyLocal()) {
   const estado = estadoExtintor(data, hoy)
   if (estado === 'off') return { estado, texto: 'Vencido' }
   if (estado === 'on') {
-    const ph = parseFechaParaCalculo(buscar(data, KEYS_PH))
+    const ph = parseFechaAproximada(buscar(data, KEYS_PH))
     return { estado, texto: ph ? `Operativo (V${String(ph.getFullYear()).slice(-2)})` : 'Operativo' }
   }
   return { estado: null, texto: 'Sin fechas registradas' }
