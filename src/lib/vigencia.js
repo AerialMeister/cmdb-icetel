@@ -1,15 +1,34 @@
 // ============================================================
-// Vigencia de extintores
-// Evalúa el vencimiento de carga y de prueba hidrostática respecto de hoy.
+// Estado y vigencia de extintores
+//
+// Para el tipo de activo Extintores, los campos "Estado" (el mismo
+// ON/OFF que usan todos los tipos de la CMDB) y "Vigencia" (columna
+// propia de Extintores) NO se cargan a mano: se calculan solos, todos
+// los días, a partir de las fechas de vencimiento de carga y de prueba
+// hidrostática, comparadas contra la fecha de HOY.
 //
 // Reglas (definidas con el usuario):
-//   * fecha < hoy                        -> "Vencida el dd/mm/aa"          (rojo)
-//   * hoy <= fecha <= hoy + DIAS_AVISO    -> "Próximo vencimiento el dd/mm/aa" (naranjo)
-//   * fecha > hoy + DIAS_AVISO            -> "Extintor vigente"            (verde)
+//   ESTADO
+//     OFF (rojo) si la fecha de vencimiento de carga y/o la de prueba
+//                hidrostática ya pasó respecto de hoy.
+//     ON  (verde) si las fechas conocidas están todas vigentes.
+//     sin dato si no hay ninguna fecha cargada.
+//
+//   VIGENCIA
+//     Si ESTADO = OFF -> "Vencido" (rojo).
+//     Si ESTADO = ON  -> "Operativo (VXX)" (verde), donde XX son los
+//                        dos últimos dígitos del año en que vence la
+//                        prueba hidrostática. Ej: vence en 2027 ->
+//                        "Operativo (V27)".
+//     Sin dato -> "Sin fechas registradas".
+//
+// Nota de diseño: como depende de "hoy", esto se recalcula en cada
+// carga de pantalla (tabla, detalle, Excel, formulario), no se guarda
+// como un valor fijo. El valor que sí queda escrito en la columna
+// `status` de la base es el que se calculó la última vez que se guardó
+// o importó el activo — sirve de respaldo para integraciones externas,
+// pero la app SIEMPRE muestra el cálculo del día de hoy, no ese respaldo.
 // ============================================================
-
-// Ventana de aviso anticipado, en días.
-export const DIAS_AVISO = 365
 
 // Claves que se buscan dentro de asset.data. Deben coincidir con las
 // definidas en supabase/migracion_v5b_extintores.sql.
@@ -19,8 +38,6 @@ const KEYS_PH = [
   'vencimiento_prueba_hidrostatica',
   'venc_prueba_hidrostatica',
 ]
-
-const MS_DIA = 86400000
 
 // Construye una fecha a medianoche LOCAL. Importante: new Date('2026-11-04')
 // se interpreta como UTC y en Chile retrocede un día.
@@ -50,11 +67,6 @@ export function parseFecha(v) {
 
 const p2 = (n) => String(n).padStart(2, '0')
 
-// dd/mm/aa
-export function fmtCorta(d) {
-  return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(-2)
-}
-
 // dd/mm/aaaa
 export function fmtLarga(d) {
   return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear()
@@ -72,18 +84,6 @@ export function hoyLocal() {
   return new Date(n.getFullYear(), n.getMonth(), n.getDate())
 }
 
-export function evaluarVencimiento(valor, hoy = hoyLocal()) {
-  const d = parseFecha(valor)
-  if (!d) return { estado: 'sin_dato', fecha: null, dias: null, texto: 'Sin fecha registrada' }
-
-  const dias = Math.round((d.getTime() - hoy.getTime()) / MS_DIA)
-  if (dias < 0) return { estado: 'vencida', fecha: d, dias, texto: 'Vencida el ' + fmtCorta(d) }
-  if (dias <= DIAS_AVISO) {
-    return { estado: 'proximo', fecha: d, dias, texto: 'Próximo vencimiento el ' + fmtCorta(d) }
-  }
-  return { estado: 'vigente', fecha: d, dias, texto: 'Vigente hasta ' + fmtCorta(d) }
-}
-
 // Busca una clave en data ignorando mayúsculas y espacios.
 function buscar(data, keys) {
   if (!data) return null
@@ -93,24 +93,30 @@ function buscar(data, keys) {
   return null
 }
 
-// Devuelve { global, items[] }.
-//   global: 'vencida' | 'proximo' | 'vigente' | 'sin_dato'
-//   items : una entrada por cada control CON fecha registrada.
-export function vigenciaExtintor(data, hoy = hoyLocal()) {
-  const items = [
-    { etiqueta: 'Carga', ...evaluarVencimiento(buscar(data, KEYS_CARGA), hoy) },
-    { etiqueta: 'P. hidrostática', ...evaluarVencimiento(buscar(data, KEYS_PH), hoy) },
-  ].filter((i) => i.estado !== 'sin_dato')
+// 'on' | 'off' | null (null = no hay ninguna fecha cargada todavía).
+//
+// Nota: si SOLO una de las dos fechas está cargada, se evalúa con la que
+// hay (no se exige que ambas estén presentes para dar ON). Si quieres que
+// sea estrictamente "las dos deben estar cargadas y vigentes", avisa y se
+// ajusta este criterio.
+export function estadoExtintor(data, hoy = hoyLocal()) {
+  const carga = parseFecha(buscar(data, KEYS_CARGA))
+  const ph = parseFecha(buscar(data, KEYS_PH))
+  if (!carga && !ph) return null
 
-  if (items.length === 0) return { global: 'sin_dato', items: [] }
+  const vencida = (d) => d !== null && d.getTime() < hoy.getTime()
+  return vencida(carga) || vencida(ph) ? 'off' : 'on'
+}
 
-  const global = items.some((i) => i.estado === 'vencida')
-    ? 'vencida'
-    : items.some((i) => i.estado === 'proximo')
-      ? 'proximo'
-      : 'vigente'
-
-  return { global, items }
+// { estado: 'on'|'off'|null, texto: string } listo para pintar.
+export function resumenVigenciaExtintor(data, hoy = hoyLocal()) {
+  const estado = estadoExtintor(data, hoy)
+  if (estado === 'off') return { estado, texto: 'Vencido' }
+  if (estado === 'on') {
+    const ph = parseFecha(buscar(data, KEYS_PH))
+    return { estado, texto: ph ? `Operativo (V${String(ph.getFullYear()).slice(-2)})` : 'Operativo' }
+  }
+  return { estado: null, texto: 'Sin fechas registradas' }
 }
 
 // Un tipo de activo es "extintor" por ilustración, slug o nombre.

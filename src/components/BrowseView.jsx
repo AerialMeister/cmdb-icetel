@@ -15,7 +15,13 @@ import FieldDefsEditor from './FieldDefsEditor.jsx'
 import ImportModal from './ImportModal.jsx'
 import AssetIllustration from './AssetIllustration.jsx'
 import VigenciaExtintor from './VigenciaExtintor.jsx'
-import { esExtintor, fmtValorFecha } from '../lib/vigencia.js'
+import { esExtintor, estadoExtintor, fmtValorFecha } from '../lib/vigencia.js'
+
+// El Estado de un extintor no se guarda a mano: se calcula desde sus
+// fechas de vencimiento. Para cualquier otro tipo se usa el valor guardado.
+function estadoMostrado(type, asset) {
+  return esExtintor(type) ? estadoExtintor(asset.data) : asset.status
+}
 
 // Valor de una celda de la tabla de activos (formatea las fechas)
 function celda(f, data) {
@@ -216,7 +222,7 @@ function GlobalSearchBar() {
                   <td>{a.alt_name || '—'}</td>
                   <td>{a.cmdb_asset_types?.name || '—'}</td>
                   <td>{a.cmdb_asset_types?.cmdb_systems?.name || '—'}</td>
-                  <td><StatusPill status={a.status} /></td>
+                  <td><StatusPill status={estadoMostrado(a.cmdb_asset_types, a)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -345,9 +351,10 @@ async function buildStyledExcel(getSystems, getAllAssetTypes, getAllAssets, getF
     })
 
     typeAssets.forEach((a, rowIdx) => {
+      const st = estadoMostrado(t, a)
       const values = [
         a.name || '', a.alt_name || '',
-        a.status ? a.status.toUpperCase() : '',
+        st ? st.toUpperCase() : '',
         ...defs.map(d => {
           const v = a.data?.[d.key]
           if (v == null || v === '') return ''
@@ -524,7 +531,8 @@ function TypesLevel({ system, canEdit, onOpenType, onBack }) {
       const c = {}
       await Promise.all(types.map(async (t) => {
         const a = await getAssets(t.id)
-        c[t.id] = { total: a.length, on: a.filter(x => x.status === 'on').length, off: a.filter(x => x.status === 'off').length }
+        const est = (x) => estadoMostrado(t, x)
+        c[t.id] = { total: a.length, on: a.filter(x => est(x) === 'on').length, off: a.filter(x => est(x) === 'off').length }
       }))
       setCounts(c)
     }).catch(e => alert(e.message))
@@ -653,7 +661,7 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
                 {fieldDefs.map(f => (
                   <td key={f.id} className='col-field'>{celda(f, a.data)}</td>
                 ))}
-                <td className='col-status'><StatusPill status={a.status} /></td>
+                <td className='col-status'><StatusPill status={estadoMostrado(type, a)} /></td>
                 {verVigencia && <td className='col-field'><VigenciaExtintor data={a.data} /></td>}
                 <td className='col-actions'>
                   {canEdit && (

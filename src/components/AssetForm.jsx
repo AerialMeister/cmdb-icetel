@@ -4,6 +4,7 @@ import { getFieldDefs, saveAsset, deleteAsset } from '../lib/api.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import FieldDefsEditor from './FieldDefsEditor.jsx'
 import { supabase } from '../supabaseClient.js'
+import { esExtintor, estadoExtintor } from '../lib/vigencia.js'
 
 // Detecta si un field_def es el campo "tableros aguas abajo"
 const isTablerosAbajo = (f) => {
@@ -135,6 +136,11 @@ export default function AssetForm({ asset, type, onClose, onSaved, onDeleted }) 
   const [err, setErr]           = useState('')
   const [managingFields, setManagingFields] = useState(false)
 
+  // El Estado de un extintor no se elige: se calcula solo desde sus fechas
+  // de vencimiento, en vivo, a medida que se editan.
+  const esExt = esExtintor(type)
+  const estadoCalculado = esExt ? estadoExtintor(data) : null
+
   const loadDefs = () => getFieldDefs(type.id).then(setDefs).catch(e => setErr(e.message))
   useEffect(() => { loadDefs() }, [type.id])
 
@@ -148,7 +154,9 @@ export default function AssetForm({ asset, type, onClose, onSaved, onDeleted }) 
     try {
       await saveAsset({
         id: asset.id, asset_type_id: type.id, name: name.trim(),
-        alt_name: altName.trim() || null, status: status || null, data,
+        alt_name: altName.trim() || null,
+        status: esExt ? estadoCalculado : (status || null),
+        data,
       })
       onSaved()
     } catch (e) { setErr(e.message); setBusy(false) }
@@ -211,11 +219,31 @@ export default function AssetForm({ asset, type, onClose, onSaved, onDeleted }) 
           </div>
           <div className="field">
             <label>Estado</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">— (sin estado)</option>
-              <option value="on">ON</option>
-              <option value="off">OFF</option>
-            </select>
+            {esExt ? (
+              <>
+                <input
+                  type="text" readOnly
+                  value={
+                    estadoCalculado === 'on' ? 'ON — operativo'
+                    : estadoCalculado === 'off' ? 'OFF — vencido'
+                    : 'Sin fechas suficientes para calcularlo'
+                  }
+                  style={{
+                    fontWeight: 700,
+                    color: estadoCalculado === 'on' ? 'var(--on, #16a34a)'
+                      : estadoCalculado === 'off' ? 'var(--off, #dc2626)'
+                      : 'var(--muted)',
+                  }}
+                />
+                <span className="hint">Se calcula solo desde las fechas de vencimiento de carga y prueba hidrostática.</span>
+              </>
+            ) : (
+              <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="">— (sin estado)</option>
+                <option value="on">ON</option>
+                <option value="off">OFF</option>
+              </select>
+            )}
           </div>
         </div>
 

@@ -1,36 +1,11 @@
-import { vigenciaExtintor } from '../lib/vigencia.js'
+import { resumenVigenciaExtintor } from '../lib/vigencia.js'
 
-const COLOR = {
-  vencida: '#dc2626',  // rojo
-  proximo: '#ea580c',  // naranjo
-  vigente: '#16a34a',  // verde
-}
+const COLOR = { off: '#dc2626', on: '#16a34a' }
 
-// Celda / bloque de vigencia de un extintor.
-// - Si todo está lejos de vencer: "Extintor vigente" en verde.
-// - Si algún control está vencido o próximo: una línea por control,
-//   con su etiqueta, para distinguir carga de prueba hidrostática.
+// Columna "Vigencia" de un extintor: "Vencido" en rojo, "Operativo (VXX)"
+// en verde, o un aviso neutro si todavía no hay fechas cargadas.
 export default function VigenciaExtintor({ data }) {
-  const { global, items } = vigenciaExtintor(data)
-
-  if (global === 'sin_dato') {
-    return <span style={{ color: 'var(--muted)' }}>Sin fechas registradas</span>
-  }
-
-  if (global === 'vigente') {
-    return <span style={{ color: COLOR.vigente, fontWeight: 600 }}>Extintor vigente</span>
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {items.map((i) => (
-        <span
-          key={i.etiqueta}
-          style={{ color: COLOR[i.estado], fontWeight: 600, whiteSpace: 'nowrap', fontSize: 13 }}
-        >
-          {i.etiqueta}: {i.texto}
-        </span>
-      ))}
-    </div>
-  )
+  const { estado, texto } = resumenVigenciaExtintor(data)
+  if (estado === null) return <span style={{ color: 'var(--muted)' }}>{texto}</span>
+  return <span style={{ color: COLOR[estado], fontWeight: 700 }}>{texto}</span>
 }

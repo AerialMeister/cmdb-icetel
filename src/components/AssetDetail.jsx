@@ -7,7 +7,7 @@ import { getFieldDefs } from '../lib/api.js'
 import { supabase } from '../supabaseClient.js'
 import CircuitosModal from './CircuitosModal.jsx'
 import VigenciaExtintor from './VigenciaExtintor.jsx'
-import { esExtintor, fmtValorFecha } from '../lib/vigencia.js'
+import { esExtintor, estadoExtintor, fmtValorFecha } from '../lib/vigencia.js'
 
 // Parsea el campo tablero_aguas_abajo (JSON array, texto libre o vacío)
 function parseTablerosAbajo(v) {
@@ -88,7 +88,10 @@ export default function AssetDetail({ asset, type, system, canEdit, onClose, onE
             <Prop k="Nombre alternativo" v={asset.alt_name} />
             <Prop k="Sistema" v={system.name} />
             <Prop k="Tipo" v={type.name} />
-            <Prop k="Estado" v={asset.status ? <StatusPill status={asset.status} /> : null} />
+            <Prop k="Estado" v={(() => {
+              const st = esExtintor(type) ? estadoExtintor(asset.data) : asset.status
+              return st ? <StatusPill status={st} /> : null
+            })()} />
             <Prop k="ID único" v={<span style={{ fontFamily: 'monospace', fontSize: 12 }}>{asset.id}</span>} />
           </div>
 

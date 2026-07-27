@@ -7,6 +7,7 @@ import {
 import {
   parseFases, parseNumeroFase, parseEstado, parseNumero, nivelDeRuta, aplicarFilasEnTablero,
 } from '../lib/circuitosExcel.js'
+import { esExtintor, estadoExtintor } from '../lib/vigencia.js'
 
 // SheetJS se carga desde CDN bajo demanda (sin dependencia npm).
 let xlsxPromise = null
@@ -180,12 +181,17 @@ export default function ImportModal({ onClose, onDone }) {
         const fieldByNorm = {}
         defs.forEach(f => { fieldByNorm[norm(f.label)] = f.key; fieldByNorm[norm(f.key)] = f.key })
 
+        // Para Extintores, Estado (y Vigencia) se calculan solos desde las
+        // fechas de vencimiento: la columna Estado de la planilla, si existe,
+        // se ignora a propósito en vez de leerse.
+        const esExt = esExtintor(t)
+
         // mapeo de columnas
         const colMap = headers.map(h => {
           const nh = norm(h)
           if (nh.includes('alternativ')) return { kind: 'altname', header: h }
           if (nh === 'nombre') return { kind: 'name', header: h }
-          if (nh.includes('estado') || nh === 'on off') return { kind: 'status', header: h }
+          if (!esExt && (nh.includes('estado') || nh === 'on off')) return { kind: 'status', header: h }
           if (fieldByNorm[nh]) return { kind: 'field', key: fieldByNorm[nh], header: h }
           return { kind: 'ignore', header: h }
         })
@@ -198,6 +204,9 @@ export default function ImportModal({ onClose, onDone }) {
 
         // parseo de filas (de-duplicando por nombre dentro de la hoja: última gana)
         const parsedByName = {}
+        // Valores de la columna Estado que no se pudieron interpretar como
+        // ON/OFF. Antes se descartaban sin avisar.
+        const estadosRaros = new Set()
         for (const r of dataRows) {
           const prov = { data: {} }
           let nm = ''
@@ -207,7 +216,10 @@ export default function ImportModal({ onClose, onDone }) {
             const sval = String(val).trim()
             if (cm.kind === 'name') nm = sval
             else if (cm.kind === 'altname') prov.altName = sval
-            else if (cm.kind === 'status') prov.status = parseStatus(sval)
+            else if (cm.kind === 'status') {
+              prov.status = parseStatus(sval)
+              if (prov.status === null) estadosRaros.add(sval)
+            }
             else if (cm.kind === 'field') prov.data[cm.key] = sval
           })
           if (nm) parsedByName[norm(nm)] = { name: nm, prov }
@@ -219,25 +231,29 @@ export default function ImportModal({ onClose, onDone }) {
           const { name, prov } = parsedByName[key]
           const ex = byName[key]
           if (ex) {
+            const mergedData = { ...(ex.data || {}), ...prov.data }
             updates.push({
               id: ex.id,
               asset_type_id: t.id,
               name,
               alt_name: 'altName' in prov ? prov.altName : (ex.alt_name ?? null),
-              status: 'status' in prov ? prov.status : (ex.status ?? null),
-              data: { ...(ex.data || {}), ...prov.data },
+              status: esExt ? estadoExtintor(mergedData) : ('status' in prov ? prov.status : (ex.status ?? null)),
+              data: mergedData,
             })
           } else {
             inserts.push({
               asset_type_id: t.id,
               name,
               alt_name: prov.altName ?? null,
-              status: prov.status ?? null,
+              status: esExt ? estadoExtintor(prov.data) : (prov.status ?? null),
               data: prov.data,
             })
           }
         }
-        out.push({ sheet: sheetName, typeName: t.name, inserts, updates, ignored })
+        out.push({
+          sheet: sheetName, typeName: t.name, inserts, updates, ignored,
+          estadosRaros: [...estadosRaros], esExtintor: esExt,
+        })
       }
       if (out.length === 0) setErr('No se encontraron hojas que coincidan con tipos de activo de la CMDB.')
       setPlan(out)
@@ -415,7 +431,21 @@ export default function ImportModal({ onClose, onDone }) {
                           ? (p.sinTablero.length
                               ? 'Tablero no encontrado: ' + p.sinTablero.join(', ')
                               : '—')
-                          : (p.ignored.length ? p.ignored.join(', ') : '—')}
+                          : (<>
+                              {p.ignored.length ? p.ignored.join(', ') : '—'}
+                              {p.estadosRaros?.length > 0 && (
+                                <div style={{ color: '#b45309', marginTop: 4 }}>
+                                  Estado no reconocido (se guardará vacío): {p.estadosRaros.join(', ')}.
+                                  Solo se aceptan ON y OFF.
+                                </div>
+                              )}
+                              {p.esExtintor && (
+                                <div style={{ marginTop: 4 }}>
+                                  Estado y Vigencia se calculan solos desde las fechas de vencimiento;
+                                  no se leen de la planilla.
+                                </div>
+                              )}
+                            </>)}
                       </td>
                     </tr>
                   ))}
