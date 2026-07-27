@@ -93,6 +93,32 @@ function buscar(data, keys) {
   return null
 }
 
+// Parte de los extintores se cargó históricamente con precisión de solo
+// mes/año (ej. "10/2026"), sin día. parseFecha() no lo reconoce a propósito
+// — así la tabla nunca inventa un día que no se cargó. Pero para PODER
+// calcular Estado/Vigencia igual, este parser adicional sí acepta esa
+// forma y asume el día 1 del mes.
+//
+// Se asume el día 1 (no el último) porque para una fecha de VENCIMIENTO
+// es la lectura más conservadora: el extintor pasa a OFF apenas empieza
+// el mes de vencimiento, en vez de seguir en ON hasta el último día. Si
+// prefieres el criterio contrario (vigente hasta fin de mes), es un
+// cambio de una línea acá.
+function parseFechaParaCalculo(v) {
+  const directa = parseFecha(v)
+  if (directa) return directa
+  if (!v) return null
+  const s = String(v).trim()
+
+  let m = s.match(/^(\d{1,2})[/-](\d{4})$/)          // mm/aaaa o mm-aaaa
+  if (m) return fechaLocal(+m[2], +m[1], 1)
+
+  m = s.match(/^(\d{4})[/-](\d{1,2})$/)               // aaaa-mm
+  if (m) return fechaLocal(+m[1], +m[2], 1)
+
+  return null
+}
+
 // 'on' | 'off' | null (null = no hay ninguna fecha cargada todavía).
 //
 // Nota: si SOLO una de las dos fechas está cargada, se evalúa con la que
@@ -100,8 +126,8 @@ function buscar(data, keys) {
 // sea estrictamente "las dos deben estar cargadas y vigentes", avisa y se
 // ajusta este criterio.
 export function estadoExtintor(data, hoy = hoyLocal()) {
-  const carga = parseFecha(buscar(data, KEYS_CARGA))
-  const ph = parseFecha(buscar(data, KEYS_PH))
+  const carga = parseFechaParaCalculo(buscar(data, KEYS_CARGA))
+  const ph = parseFechaParaCalculo(buscar(data, KEYS_PH))
   if (!carga && !ph) return null
 
   const vencida = (d) => d !== null && d.getTime() < hoy.getTime()
@@ -113,7 +139,7 @@ export function resumenVigenciaExtintor(data, hoy = hoyLocal()) {
   const estado = estadoExtintor(data, hoy)
   if (estado === 'off') return { estado, texto: 'Vencido' }
   if (estado === 'on') {
-    const ph = parseFecha(buscar(data, KEYS_PH))
+    const ph = parseFechaParaCalculo(buscar(data, KEYS_PH))
     return { estado, texto: ph ? `Operativo (V${String(ph.getFullYear()).slice(-2)})` : 'Operativo' }
   }
   return { estado: null, texto: 'Sin fechas registradas' }
