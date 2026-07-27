@@ -9,6 +9,10 @@ import { IconChip, IconUsers, IconLogout } from './components/Icons.jsx'
 function Shell() {
   const { session, displayName, role, loading, isAdmin, signOut } = useAuth()
   const [tab, setTab] = useState('browse')
+  // Cambiar homeKey remonta BrowseView desde cero (vuelve a Sistemas),
+  // incluso si ya estabas en la pestaña Activos navegado varios niveles.
+  const [homeKey, setHomeKey] = useState(0)
+  const goHome = () => { setTab('browse'); setHomeKey(k => k + 1) }
 
   if (!supabaseConfigured) {
     return (
@@ -42,7 +46,7 @@ function Shell() {
   return (
     <>
       <header className="app-header">
-        <div className="logo">
+        <button className="logo logo-btn" onClick={goHome} title="Ir al inicio">
           <svg width="26" height="26" viewBox="0 0 32 32">
             <rect width="32" height="32" rx="7" fill="#1d4ed8"/>
             <g fill="#fff">
@@ -52,7 +56,7 @@ function Shell() {
             </g>
           </svg>
           CMDB <span style={{ color: "#fff" }}>Icetel</span>
-        </div>
+        </button>
 
         <nav className="tabs">
           <button
@@ -93,7 +97,7 @@ function Shell() {
       </header>
 
       <main className="container">
-        {tab === 'browse' && <BrowseView />}
+        {tab === 'browse' && <BrowseView key={homeKey} />}
         {tab === 'users'  && isAdmin && <UsersAdmin />}
       </main>
     </>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../supabaseClient.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import {
@@ -15,12 +15,122 @@ import FieldDefsEditor from './FieldDefsEditor.jsx'
 import ImportModal from './ImportModal.jsx'
 import AssetIllustration from './AssetIllustration.jsx'
 import VigenciaExtintor from './VigenciaExtintor.jsx'
-import { esExtintor, estadoExtintor, fmtValorFecha } from '../lib/vigencia.js'
+import { esExtintor, estadoExtintor, resumenVigenciaExtintor, fmtValorFecha } from '../lib/vigencia.js'
 
 // El Estado de un extintor no se guarda a mano: se calcula desde sus
 // fechas de vencimiento. Para cualquier otro tipo se usa el valor guardado.
 function estadoMostrado(type, asset) {
   return esExtintor(type) ? estadoExtintor(asset.data) : asset.status
+}
+
+// Texto sin mayúsculas ni tildes, para comparar filtros de forma tolerante.
+const normTexto = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+/* --- Gráficos de conteo (barras horizontales) --- */
+function contarPor(items, obtenerClave) {
+  const counts = new Map()
+  for (const a of items) {
+    const k = String(obtenerClave(a) || '').trim()
+    if (!k) continue
+    counts.set(k, (counts.get(k) || 0) + 1)
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])
+}
+
+function ConteoCard({ title, data }) {
+  const max = data.length ? data[0][1] : 0
+  return (
+    <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 18px', boxShadow: 'var(--shadow)' }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</div>
+      {data.length === 0 ? (
+        <div style={{ color: 'var(--muted)', fontSize: 13 }}>Sin datos para graficar.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 210, overflowY: 'auto' }}>
+          {data.map(([label, count]) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 88, fontSize: 12, color: 'var(--text)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={label}>{label}</span>
+              <div style={{ flex: 1, background: 'var(--bg)', borderRadius: 6, height: 14, overflow: 'hidden' }}>
+                <div style={{ width: (count / max * 100) + '%', background: '#1d4ed8', height: '100%' }} />
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, minWidth: 20, textAlign: 'right' }}>{count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* --- Donut compacto para comparar 2-3 categorías (ej. operativo/vencido) --- */
+function MiniDonut({ title, segments }) {
+  const total = segments.reduce((s, x) => s + x.count, 0)
+  const r = 46, sw = 18, cx = 62, cy = 62, circ = 2 * Math.PI * r
+  let offset = 0
+  const segs = segments.filter(s => s.count > 0).map(s => {
+    const dash = total ? (s.count / total) * circ : 0
+    const seg = { ...s, dash, offset }
+    offset += dash
+    return seg
+  })
+  return (
+    <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 18px', boxShadow: 'var(--shadow)' }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</div>
+      {total === 0 ? (
+        <div style={{ color: 'var(--muted)', fontSize: 13 }}>Sin datos para graficar.</div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          <svg width={124} height={124} viewBox="0 0 124 124" style={{ flexShrink: 0 }}>
+            {segs.map((sg, i) => (
+              <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={sg.color} strokeWidth={sw}
+                strokeDasharray={sg.dash + ' ' + (circ - sg.dash)} strokeDashoffset={-sg.offset}
+                transform={'rotate(-90 ' + cx + ' ' + cy + ')'} />
+            ))}
+            <text x={cx} y={cy - 4} textAnchor="middle" fontSize={20} fontWeight={800} fill="var(--text)">{total}</text>
+            <text x={cx} y={cy + 12} textAnchor="middle" fontSize={9} fill="var(--muted)">extintores</text>
+          </svg>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {segments.map((s, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 11, height: 11, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12 }}>{s.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Fila de gráficos exclusiva de Extintores. Se calcula sobre `items`, que
+// AssetsLevel ya pasa filtrado: al acotar la tabla con los filtros de
+// columna, los gráficos se recalculan sobre lo mismo que se ve abajo.
+function ExtintorCharts({ items }) {
+  const porMarca = contarPor(items, a => a.data?.marca)
+  const porTipo = contarPor(items, a => a.data?.tipo)
+  const porPeso = contarPor(items, a => a.data?.peso)
+  const porEdificio = contarPor(items, a => a.data?.edificio)
+  let on = 0, off = 0, sin = 0
+  items.forEach(a => {
+    const est = resumenVigenciaExtintor(a.data).estado
+    if (est === 'on') on++
+    else if (est === 'off') off++
+    else sin++
+  })
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 16, marginBottom: 20 }}>
+      <MiniDonut title="Operativos vs vencidos" segments={[
+        { label: 'Operativo', count: on, color: '#16a34a' },
+        { label: 'Vencido', count: off, color: '#dc2626' },
+        { label: 'Sin fechas', count: sin, color: '#94a3b8' },
+      ]} />
+      <ConteoCard title="Cantidad por marca" data={porMarca} />
+      <ConteoCard title="Cantidad por tipo" data={porTipo} />
+      <ConteoCard title="Cantidad por peso (kg)" data={porPeso} />
+      <ConteoCard title="Distribución por edificio" data={porEdificio} />
+    </div>
+  )
 }
 
 // Valor de una celda de la tabla de activos (formatea las fechas)
@@ -595,7 +705,7 @@ function TypesLevel({ system, canEdit, onOpenType, onBack }) {
 function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
   const [items, setItems]         = useState(null)
   const [fieldDefs, setFieldDefs] = useState([])
-  const [q, setQ]                 = useState('')
+  const [filtros, setFiltros]     = useState({})
   const [editing, setEditing]     = useState(null)
   const [detail, setDetail]       = useState(null)
 
@@ -607,6 +717,7 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
     } catch (e) { alert(e.message) }
   }, [type.id])
   useEffect(() => { load() }, [load])
+  useEffect(() => { setFiltros({}) }, [type.id])
 
   const remove = async (e, a) => {
     e.stopPropagation()
@@ -614,13 +725,61 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
     try { await deleteAsset(a.id); load() } catch (err) { alert(err.message) }
   }
 
-  if (!items) return <Loading />
-  const sq = q.toLowerCase()
-  const filtered = items.filter(a =>
-    a.name.toLowerCase().includes(sq) || (a.alt_name || '').toLowerCase().includes(sq)
-  )
   // Columna de vigencia: solo para el tipo Extintores
   const verVigencia = esExtintor(type)
+
+  // Modelo de columnas filtrables: Nombre, Nombre alternativo, cada campo
+  // dinámico del tipo, Estado y (si aplica) Vigencia. Los campos de lista
+  // (select/boolean) se filtran con un desplegable de sus opciones reales;
+  // el resto, con un texto de "contiene".
+  const columnas = useMemo(() => {
+    const cols = [
+      { key: '__name', label: 'Nombre', tipo: 'texto', valor: a => a.name || '' },
+      { key: '__alt',  label: 'Nombre alternativo', tipo: 'texto', valor: a => a.alt_name || '' },
+    ]
+    fieldDefs.forEach(f => {
+      if (f.field_type === 'select' && Array.isArray(f.options) && f.options.length) {
+        cols.push({ key: f.key, label: f.label, tipo: 'select', opciones: f.options, valor: a => a.data?.[f.key] || '' })
+      } else if (f.field_type === 'boolean') {
+        cols.push({
+          key: f.key, label: f.label, tipo: 'select', opciones: ['si', 'no'],
+          etiquetas: { si: 'Sí', no: 'No' }, valor: a => a.data?.[f.key] || '',
+        })
+      } else {
+        cols.push({ key: f.key, label: f.label, tipo: 'texto', valor: a => String(celda(f, a.data)) })
+      }
+    })
+    cols.push({
+      key: '__estado', label: 'Estado', tipo: 'select', opciones: ['on', 'off'],
+      etiquetas: { on: 'ON', off: 'OFF' }, valor: a => estadoMostrado(type, a) || '',
+    })
+    if (verVigencia) {
+      cols.push({
+        key: '__vigencia', label: 'Vigencia', tipo: 'select', opciones: ['on', 'off', 'sin'],
+        etiquetas: { on: 'Operativo', off: 'Vencido', sin: 'Sin fechas' },
+        valor: a => {
+          const est = resumenVigenciaExtintor(a.data).estado
+          return est === 'on' ? 'on' : est === 'off' ? 'off' : 'sin'
+        },
+      })
+    }
+    return cols
+  }, [fieldDefs, type, verVigencia])
+
+  const filtered = useMemo(() => {
+    if (!items) return []
+    return items.filter(a => columnas.every(col => {
+      const f = filtros[col.key]
+      if (!f) return true
+      return col.tipo === 'texto'
+        ? normTexto(col.valor(a)).includes(normTexto(f))
+        : col.valor(a) === f
+    }))
+  }, [items, filtros, columnas])
+
+  const hayFiltros = Object.values(filtros).some(Boolean)
+
+  if (!items) return <Loading />
 
   return (
     <>
@@ -634,12 +793,43 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
       <div className='toolbar'>
         <h1 className='page-title'>{type.name}</h1>
         <div className='spacer' />
-        <div style={{ position:'relative' }}>
-          <IconSearch width={16} height={16} style={{ position:'absolute', left:10, top:10, color:'var(--muted)' }} />
-          <input className='search-input' style={{ paddingLeft:32 }} placeholder='Buscar...' value={q} onChange={e => setQ(e.target.value)} />
-        </div>
         {canEdit && <button className='btn btn-primary' onClick={() => setEditing({ asset_type_id: type.id })}><IconPlus width={18} height={18} /> Nuevo activo</button>}
       </div>
+
+      <div className='filters-panel'>
+        <div className='filters-grid'>
+          {columnas.map(col => (
+            <div className='field' key={col.key}>
+              <label>{col.label}</label>
+              {col.tipo === 'select' ? (
+                <select
+                  className='filter-select'
+                  value={filtros[col.key] || ''}
+                  onChange={e => setFiltros(f => ({ ...f, [col.key]: e.target.value }))}
+                >
+                  <option value=''>Todos</option>
+                  {col.opciones.map(o => <option key={o} value={o}>{col.etiquetas?.[o] || o}</option>)}
+                </select>
+              ) : (
+                <input
+                  type='text'
+                  className='search-input'
+                  placeholder='Buscar…'
+                  value={filtros[col.key] || ''}
+                  onChange={e => setFiltros(f => ({ ...f, [col.key]: e.target.value }))}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+        {hayFiltros && (
+          <button className='btn btn-sm' style={{ marginTop: 12 }} onClick={() => setFiltros({})}>
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
+      {verVigencia && <ExtintorCharts items={filtered} />}
 
       <div className='table-wrap'>
         <table>
@@ -678,6 +868,10 @@ function AssetsLevel({ system, type, canEdit, onBack, onBackRoot }) {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 13, color: 'var(--muted)', textAlign: 'right' }}>
+        Mostrando <b style={{ color: 'var(--text)' }}>{filtered.length}</b> de {items.length} activo{items.length === 1 ? '' : 's'}
       </div>
 
       {editing && <AssetForm asset={editing} type={type} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
